@@ -1,0 +1,71 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://examples/zee_range.gd" id="1_range"]
+[ext_resource type="Script" path="res://addons/dot_player_controller/fp/nodes/dot_fps_view.gd" id="2_view"]
+[ext_resource type="Script" path="res://addons/dot_player_controller/fp/nodes/dot_fps_controller.gd" id="3_ctrl"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="Environment" id="Environment_range"]
+background_mode = 1
+background_color = Color(0.14, 0.16, 0.2, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.6, 0.65, 0.75, 1)
+ambient_light_energy = 0.55
+
+[node name="ZeeRange" type="Node"]
+script = ExtResource("1_range")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_range")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.86, -0.29, 0.42, 0, 0.82, 0.57, -0.51, -0.49, 0.71, 0, 12, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Player" type="CharacterBody3D" parent="."]
+
+[node name="Collision" type="CollisionShape3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Head" type="Node3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.625, 0)
+
+[node name="Camera" type="Camera3D" parent="Player/Head"]
+fov = 90.0
+
+[node name="View" type="Node" parent="Player"]
+script = ExtResource("2_view")
+
+[node name="Controller" type="Node" parent="Player"]
+script = ExtResource("3_ctrl")
+tick_rate = 64
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Readout" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 420.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 22
+
+[node name="Crosshair" type="Label" parent="UI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -8.0
+offset_top = -14.0
+offset_right = 8.0
+offset_bottom = 14.0
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 24
