@@ -5,6 +5,13 @@
 #   tools/screenshot.sh rifle                      # screenshots/rifle.png
 #   tools/screenshot.sh sniper shots/sniper.png --wait 16
 #   tools/screenshot.sh --all                      # one frame per weapon
+#   tools/screenshot.sh --rack docs/rack.png       # all of them, muzzle pips shown
+#
+#   EXTRA="--no-arms 1" tools/screenshot.sh rifle  # weapon only, no hands
+#
+# EXTRA is passed straight through to the range. `--no-arms` is the one that earns
+# its keep: an arm drawn wrongly and a weapon drawn wrongly look identical in a
+# screenshot until one of them is switched off.
 #
 # WHY THIS EXISTS
 #
