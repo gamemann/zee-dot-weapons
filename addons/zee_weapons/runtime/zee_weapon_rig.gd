@@ -182,6 +182,7 @@ func setup() -> DotResult:
 		if script is Script:
 			_bash = (script as Script).new()
 
+	_resolve_carrier()
 	_resolve_presentation()
 	_connect_arsenal()
 
@@ -206,6 +207,42 @@ func _resolve_arsenal() -> DotResult:
 	return DotResult.success(null)
 
 
+## Who is carrying this, which is NOT presentation and must not be skipped on a server.
+##
+## [b]This was inside [method _resolve_presentation], behind its `role == SERVER` early
+## return, and that made every shot on every dedicated server come out of the world
+## origin.[/b] The view model and the world model genuinely are presentation and are
+## genuinely right to skip on a server; the player is where [method
+## DotWeaponPlayerBridge.context_for] takes the muzzle position and the aim direction from,
+## so a null one produces a [DotWeaponContext] holding its defaults — origin
+## `(0, 0, 0)`, direction `(0, 0, -1)` — and dot-combat then traces from the middle of the
+## map, due north, for every player at once.
+##
+## Nothing reports it. The weapon fires, the ammunition goes down, the use counter
+## increments and replicates, the hit registration runs, and it finds nothing because there
+## is nothing where it looked. A game built on this has a showdown in which nobody can be
+## shot and every number about it is correct.
+##
+## Found by mg-smash-copter, whose bots fought each other for twenty rounds and ended every
+## single one with exactly two players alive — one per side, a draw, every time. A number
+## that is identical every round is a number nothing is deciding.
+func _resolve_carrier() -> void:
+	if player_ref == null:
+		return
+
+	var player := player_ref.resolve(self)
+
+	if player.ok:
+		_player = player.value
+		return
+
+	# Loud, because a carrier that cannot be found is a carrier that shoots the map.
+	DotLog.warn(CHANNEL, "the rig could not find the player carrying it", {
+		"why": player.error.message,
+		"consequence": "shots resolve from the world origin",
+	})
+
+
 func _resolve_presentation() -> void:
 	if role == Role.SERVER:
 		return
@@ -220,10 +257,6 @@ func _resolve_presentation() -> void:
 		if world.ok and world.value is ZeeWorldModel:
 			_world = world.value
 
-	if player_ref != null:
-		var player := player_ref.resolve(self)
-		if player.ok:
-			_player = player.value
 
 
 func _connect_arsenal() -> void:

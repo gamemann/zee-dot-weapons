@@ -40,6 +40,7 @@ func _ready() -> void:
 	_pose_stability()
 	_net()
 	_rig()
+	_rig_carrier()
 	_rig_rollback()
 	_view_models()
 
@@ -625,6 +626,87 @@ func _rig() -> void:
 	_check("holding it does not swing every tick", bashes.size() < 4)
 
 	_cleanup(rig)
+	_end()
+
+
+## [b]A SERVER rig has to know who is carrying it, and for a long time it did not.[/b]
+##
+## `player_ref` was resolved inside `_resolve_presentation()`, behind that function's
+## `role == SERVER` early return. The view model and the world model belong there — they
+## are drawing, and a server draws nothing. The player does not: it is where
+## [method DotWeaponPlayerBridge.context_for] takes the muzzle position and the aim
+## direction from, so a rig that skipped it built every [DotWeaponContext] with the
+## defaults, and every shot on every dedicated server came out of `(0, 0, 0)` pointing
+## `(0, 0, -1)`.
+##
+## **Nothing reported it, and the 133 checks above could not.** The weapon fires, the
+## ammunition goes down, the use counter increments and replicates, and the hit
+## registration runs and finds nothing, because there is nothing where it looked. What a
+## game built on this has is a fight in which nobody can be shot and every number about it
+## is correct.
+##
+## It was found in a game, by running bots against each other for twenty rounds: every
+## single round ended with exactly two players alive, one per side, a draw. A number that is
+## identical every round is a number nothing is deciding.
+##
+## The carrier here is a bare [Node3D] with no `component` method, so the bridge falls all
+## the way through to the body transform — which is the weakest of its three answers and is
+## the right one to test against, because it is the only one every game has.
+func _rig_carrier() -> void:
+	_begin("the rig knows who is carrying it")
+
+	var carrier := Node3D.new()
+	carrier.name = "Carrier"
+	add_child(carrier)
+	carrier.global_position = Vector3(12.0, 3.0, -45.0)
+	carrier.rotation = Vector3(0.0, deg_to_rad(90.0), 0.0)
+
+	var rig := ZeeWeaponRig.new()
+	rig.role = ZeeWeaponRig.Role.SERVER
+	rig.authority = true
+	rig.tick_rate = ZeeWeaponPack.TICK_RATE
+	rig.player_ref = DotNodeRef.of_path(^"..")
+	carrier.add_child(rig)
+
+	var res := rig.setup()
+	_check("a server rig with a carrier sets up: %s" % _why(res), res.ok)
+
+	var _given := rig.give_everything()
+	rig.arsenal.select(ZeeWeaponIds.SLOT_PRIMARY, 0)
+	_run_rig(rig, 0, 60, 0)
+
+	var shots: Array = []
+
+	for tick in range(60, 120):
+		var command := DotWeaponCommand.new()
+		command.buttons = DotWeaponCommand.BUTTON_ATTACK
+		var outcome := rig.simulate_tick(command, tick)
+
+		if outcome != null and not outcome.shots.is_empty():
+			shots.append(outcome.shots[0])
+			break
+
+	_check("it fires", not shots.is_empty())
+
+	if shots.is_empty():
+		carrier.queue_free()
+		_end()
+		return
+
+	var shot: DotShot = shots[0]
+
+	# Armed: with the resolution back inside `_resolve_presentation`, this is
+	# `(0, 0, 0)` and the next one is `(0, 0, -1)`.
+	_check(
+		"and the shot leaves the carrier rather than the world origin (%v)" % shot.origin,
+		shot.origin.distance_to(carrier.global_position) < 2.5
+	)
+	_check(
+		"and goes where the carrier is facing (%v)" % shot.direction,
+		shot.direction.dot(-carrier.global_transform.basis.z) > 0.9
+	)
+
+	carrier.queue_free()
 	_end()
 
 

@@ -76,6 +76,12 @@ A four-bit counter *inside* the snapshot cannot do any of those. A watcher who m
 
 ## Validating
 
+- **Every shot on every dedicated server came out of the world origin, pointing north.** `player_ref` was resolved inside `_resolve_presentation()`, behind that function's `role == SERVER` early return. The view model and the world model belong there — they are drawing, and a server draws nothing. The player does not: it is where `DotWeaponPlayerBridge.context_for` takes the muzzle position and the aim direction from, so a server rig built every `DotWeaponContext` with the defaults, `(0, 0, 0)` and `(0, 0, -1)`.
+
+  **Nothing reported it and 133 checks could not.** The weapon fires, the ammunition goes down, the use counter increments and replicates, and the hit registration runs and finds nothing, because there is nothing where it looked. A game built on this has a fight in which nobody can be shot and every number about it is correct. It was found in mg-smash-copter by running bots against each other for twenty rounds: every single round ended with exactly two players alive, one per side, a draw. A number that is identical every round is a number nothing is deciding.
+
+  The suite could not see it because `_make_rig()` never set a carrier — which is the shape of the gap rather than an oversight, since a test rig with no player is the easiest one to write. `_rig_carrier()` builds a SERVER rig under a positioned, rotated `Node3D` and asserts the shot leaves the carrier and goes where it faces. Both checks armed, both fire, with the original symptom verbatim.
+
 ```bash
 cd godot/zee-dot-weapons
 
