@@ -2,7 +2,7 @@
 
 A weapons pack for the Dot family. Read `../../CLAUDE.md` first for the family-wide rules — no autoloads, `DotResult` for anything fallible, ticks rather than seconds, `DotNodeRef` rather than a scene path, everything logged through `DotLog`. This file is only what is specific to this repository.
 
-**This one is not in the `modcommunity` organisation.** Its `origin` is `git@github.com:gamemann/zee-dot-weapons.git`. Everything else about it — the layout, the conventions, the two-step check, `push-github.sh` — is the same as the rest of the tree.
+**This one is not in the `modcommunity` organisation**, and neither is any game any more: the addons are the organisation's and the games are their author's. Its `origin` is `git@github.com:gamemann/zee-dot-weapons.git`. Everything else about it — the layout, the conventions, the two-step check, `push-github.sh` — is the same as the rest of the tree.
 
 ## The one idea
 
