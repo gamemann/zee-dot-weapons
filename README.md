@@ -1,4 +1,17 @@
-# zee-dot-weapons
+This is a **weapons pack** built on TMC's **Dot** collection, rather than a piece of it. It is the half [dot-weapon](https://github.com/modcommunity/dot-weapon) deliberately leaves out — the view models, the world models, the animation and the art — with twenty-seven weapons already built on top of it.
+
+The **Dot** collection is a set of open source Godot 4 assets that provide modular building blocks for games and applications in the TMC ecosystem, covering core functionality, networking, authentication, cloud integration, and more. This pack is built out of them, so it doubles as a worked example of what they look like in a real project rather than in a demo.
+
+**This pack and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license, and the art it ships is CC0, which asks for even less. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
+
+## From Maintainer & WARNING
+This pack, along with every asset it is built on, was built initially with **Claude Code** and will continue to be maintained and extended using it. This is because I (`gamemann`) cannot build the entire TMC platform alone (I wish I could lol).
+
+**Please treat this as partially tested.** It has its own headless test suite and that suite passes, but very little of this has been in front of real players yet. Expect rough edges, and please report anything you run into.
+
+I intend on reviewing code, testing, and editing documentation regularly. If you're interested in helping out, please let me know!
+
+## Twenty-Seven Weapons, Built on dot-weapon
 
 A complete, networked weapons pack for the Dot ecosystem: **twenty-seven weapons** built on [dot-weapon](https://github.com/modcommunity/dot-weapon)'s catalogue, with first-person view models, third-person world models, procedural animation, and the replication that makes another player's weapon look right on your screen.
 
