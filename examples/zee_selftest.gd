@@ -17,6 +17,11 @@ extends Node
 
 const CHANNEL := "zee.selftest"
 
+## Every check this suite makes. A script error aborts the section it is in, and a section
+## that aborts after its last `_check` still counts as finished; only a total can see the
+## checks that never ran. It was counted and compared with nothing until 2026-09-24.
+const CHECKS := 137
+
 var _sections_entered: int = 0
 var _sections_finished: int = 0
 var _checks: int = 0
@@ -56,13 +61,14 @@ func _ready() -> void:
 			+ "one, and its remaining checks never ran."
 		)
 
-	print("RESULT: %s" % (
-		"PASS" if _failures == 0 and _sections_entered == _sections_finished else "FAIL"
-	))
+	if _checks != CHECKS:
+		print("!! %d checks ran, %d expected. A section aborted part-way." % [_checks, CHECKS])
 
-	get_tree().quit(
-		0 if _failures == 0 and _sections_entered == _sections_finished else 1
-	)
+	var passed := _failures == 0 and _sections_entered == _sections_finished and _checks == CHECKS
+
+	print("RESULT: %s" % ("PASS" if passed else "FAIL"))
+
+	get_tree().quit(0 if passed else 1)
 
 
 # --- Sections ---------------------------------------------------------------
