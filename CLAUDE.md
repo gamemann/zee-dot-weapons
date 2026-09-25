@@ -95,7 +95,7 @@ done
 timeout 300 godot --headless --path . res://examples/zee_selftest.tscn
 ```
 
-**15 sections, 137 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
+**16 sections, 141 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
 
 ### And then look at it, because the suite cannot
 

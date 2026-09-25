@@ -142,6 +142,11 @@ func clear() -> void:
 ## [b]Only ever adds, never replaces.[/b] A game that has bound its own `attack` has
 ## bound it on purpose, and an addon that overwrote it at startup would be an addon that
 ## silently un-configures the project it is installed into. Returns how many it added.
+##
+## [b]Logged at INFO when it adds anything, and silent when it adds nothing.[/b] It
+## changes the project's input map at startup, and "why does R reload when my game never
+## bound it" has no other answer anywhere in the process. A second call adds nothing and
+## says nothing, so it cannot turn into a line per scene change.
 static func register_default_actions() -> int:
 	var bindings := {
 		&"attack": [MOUSE_BUTTON_LEFT],
@@ -159,19 +164,27 @@ static func register_default_actions() -> int:
 		&"weapon_slot_5": [KEY_5],
 	}
 
-	var added := 0
+	var added: Array[String] = []
+	var kept := 0
 
 	for action: StringName in bindings.keys():
 		if InputMap.has_action(action):
+			kept += 1
 			continue
 
 		InputMap.add_action(action)
-		added += 1
+		added.append(String(action))
 
 		for code: int in bindings[action]:
 			InputMap.action_add_event(action, _event_for(action, code))
 
-	return added
+	if not added.is_empty():
+		DotLog.info(CHANNEL, "added default weapon bindings the project did not define", {
+			"added": added,
+			"kept_project_bindings": kept,
+		})
+
+	return added.size()
 
 
 ## Builds the event for a binding, mouse or key.

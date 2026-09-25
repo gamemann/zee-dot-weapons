@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 137
+const CHECKS := 141
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -48,6 +48,7 @@ func _ready() -> void:
 	_rig_carrier()
 	_rig_rollback()
 	_view_models()
+	_input_bindings()
 
 	print("")
 	print("%d sections entered, %d finished, %d checks, %d failed" % [
@@ -881,6 +882,46 @@ func _cleanup(node: Node) -> void:
 
 func _why(res: DotResult) -> String:
 	return "" if res.ok else res.error.message
+
+
+func _input_bindings() -> void:
+	_begin("input bindings")
+
+	# Every action this could add, removed first so the suite starts from a project
+	# that bound none of them, and removed again after so no later scene inherits them.
+	var ours: Array[StringName] = []
+	for action: StringName in ZeeWeaponInput.DEFAULT_ACTIONS.keys():
+		ours.append(action)
+	for slot in range(1, 6):
+		ours.append(StringName(ZeeWeaponInput.SLOT_ACTION_PREFIX + str(slot)))
+	for action in ours:
+		if InputMap.has_action(action):
+			InputMap.erase_action(action)
+
+	# An Array, not a counter: a lambda captures a scalar by value.
+	var heard: Array[Dictionary] = []
+	var listen := func(rec: Dictionary) -> void:
+		if str(rec.get("channel", "")) == ZeeWeaponInput.CHANNEL:
+			heard.append(rec)
+	DotLog.signals().record.connect(listen)
+
+	var first := ZeeWeaponInput.register_default_actions()
+	_check("registering the defaults adds all thirteen", first == 13)
+	_check(
+		"and says so once, on zee.input, at INFO (heard %d)" % heard.size(),
+		heard.size() == 1 and int(heard[0].get("level", -1)) == DotLog.Level.INFO
+	)
+
+	var second := ZeeWeaponInput.register_default_actions()
+	_check("a second call adds nothing", second == 0)
+	_check("and logs nothing: an edge, not a line per call", heard.size() == 1)
+
+	DotLog.signals().record.disconnect(listen)
+	for action in ours:
+		if InputMap.has_action(action):
+			InputMap.erase_action(action)
+
+	_end()
 
 
 # --- Counting ---------------------------------------------------------------
