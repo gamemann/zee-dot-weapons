@@ -22,7 +22,8 @@ extends RefCounted
 ## one became the sniper, and the 0.42 m one became the derringer. A role assigned from
 ## a filename would have been a coin flip eighteen times.
 
-const CHANNEL := "zee.art"
+# No CHANNEL: a table of filenames. validate() returns a DotResult for the caller to log,
+# and the one runtime that can fail against the disk, ZeeModelCache, logs its own misses.
 
 const BLASTERS := "res://assets/blaster-kit/"
 const MELEE := "res://assets/melee/"

@@ -20,7 +20,8 @@ extends RefCounted
 ## different question — how do I win a corridor, how do I win a rooftop, how do I move,
 ## how do I open a door — and the comments say which.
 
-const CHANNEL := "zee.pack"
+# No CHANNEL: a table of documents built by static functions. It refuses nothing itself;
+# DotWeaponCatalogue.validate() returns a DotResult and the caller decides who hears it.
 
 ## The tick rate everything below is tuned for.
 ##

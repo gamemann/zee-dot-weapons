@@ -23,7 +23,8 @@ extends Node3D
 ## character twenty metres away it reads as the weapon coming loose. A fraction of it is
 ## enough to tell a watcher that the gun went off.
 
-const CHANNEL := "zee.world"
+# No CHANNEL: a drawer. Its one failure, a model that will not load, is reported once by
+# ZeeModelCache and handed back as a DotResult; "nowhere to attach" is headless, not wrong.
 
 ## How much of a weapon's recoil a watcher sees.
 const RECOIL_SHARE := 0.35

@@ -31,7 +31,8 @@ extends RefCounted
 ## So the bridge lives in the host game and this is everything it would otherwise have
 ## had to work out.
 
-const CHANNEL := "zee.net"
+# No CHANNEL: a codec of static functions over snapshot fields, run per tick per watcher.
+# A codec is silent; anything it could say would be once per snapshot.
 
 ## Bits in the fire counter. Four is sixteen shots between snapshots, which at 64 Hz is
 ## a weapon firing at 960 rounds a minute — the fastest thing in the pack is 1100, so a

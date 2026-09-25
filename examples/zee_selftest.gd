@@ -15,7 +15,7 @@ extends Node
 ## four bugs in this family were found by looking at a picture that every check had
 ## passed. `tools/screenshot.sh` is the other half of the test suite and is not optional.
 
-const CHANNEL := "zee.selftest"
+# No CHANNEL: a suite's verdict is its output, and it prints it; it is not a log record.
 
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the

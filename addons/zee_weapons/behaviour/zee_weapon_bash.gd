@@ -22,7 +22,8 @@ extends DotWeaponBehaviour
 ## differs from every other one in the family, and it is why [member def] is re-pointed
 ## rather than fixed.
 
-const CHANNEL := "zee.bash"
+# No CHANNEL: a behaviour run once per use, per carrier, and replayed on rollback. It has
+# no refusal of its own (the rig owns the cooldown), so there is nothing an operator acts on.
 
 ## What a bash does when the weapon in hand says nothing about it.
 const DEFAULT_DAMAGE := 40.0
