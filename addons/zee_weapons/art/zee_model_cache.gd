@@ -34,6 +34,36 @@ static var _bounds: Dictionary = {}
 ## rather than once per frame for as long as somebody is holding it.
 static var _complained: Dictionary = {}
 
+## Where `res://assets/` is on this machine. `res://` everywhere but inside a mounted pack.
+static var _asset_root: String = "res://"
+
+
+## Puts the art somewhere other than `res://assets/`, for a game delivered as a pack.
+##
+## [b]Every path in [ZeeWeaponArtTable] and [ZeeViewArms] says `res://assets/…`, and in a
+## delivered game that is the one place the art is not.[/b] The pack vendors it beside its
+## own files and dot-cloud mounts those under `res://dot_cloud/<id>/<version>/`, so a
+## client shell — which carries this addon and no art — resolves every weapon to nothing
+## and the WARN below says "the weapon will be invisible" for all twenty-seven. The table
+## is not rewritten because it is the one file that names art and must keep reading the same
+## in a game that builds the art in. Called by the game when it loads, with its mount root;
+## `res://` puts it back, and a game that sets it clears it when it goes, because a static
+## outlives the game in a shell that switches to another one.
+static func set_asset_root(root: String) -> void:
+	_asset_root = root if root.ends_with("/") else root + "/"
+	_scenes.clear()
+	_bounds.clear()
+	_complained.clear()
+
+
+## [param path], under [method set_asset_root] when it names the shipped art. A path that
+## is already under the root, or names anything else, comes back unchanged.
+static func resolve(path: String) -> String:
+	if _asset_root == "res://" or not path.begins_with("res://assets/"):
+		return path
+
+	return _asset_root + path.trim_prefix("res://")
+
 
 ## The scene at [param path], loaded at most once.
 static func scene(path: String) -> DotResult:
@@ -43,14 +73,16 @@ static func scene(path: String) -> DotResult:
 	if _scenes.has(path):
 		return DotResult.success(_scenes[path])
 
-	if not ResourceLoader.exists(path):
+	var real := resolve(path)
+
+	if not ResourceLoader.exists(real):
 		return DotResult.fail(
 			DotError.CODE_IO,
-			"No model at %s. A weapon delivered in a content pack needs that pack " % path
+			"No model at %s. A weapon delivered in a content pack needs that pack " % real
 			+ "mounted before it can be drawn."
 		)
 
-	var loaded: Variant = load(path)
+	var loaded: Variant = load(real)
 
 	if not (loaded is PackedScene):
 		return DotResult.fail(

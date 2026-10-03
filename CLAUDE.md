@@ -82,6 +82,10 @@ A four-bit counter *inside* the snapshot cannot do any of those. A watcher who m
 
   The suite could not see it because `_make_rig()` never set a carrier — which is the shape of the gap rather than an oversight, since a test rig with no player is the easiest one to write. `_rig_carrier()` builds a SERVER rig under a positioned, rotated `Node3D` and asserts the shot leaves the carrier and goes where it faces. Both checks armed, both fire, with the original symptom verbatim.
 
+## The art inside a delivered game
+
+`ZeeWeaponArtTable` and `ZeeViewArms` name `res://assets/…`, and a game delivered as a dot-cloud pack has its vendored copy under `res://dot_cloud/<id>/<version>/assets/…` instead, while the client shell carries this addon and no art. Every weapon then loads invisible, with one WARN each. `ZeeModelCache.set_asset_root(root)` rewrites `res://assets/` paths under `root` at the one place every model is loaded; the table is untouched, because it must read the same in a game that builds the art in. A game sets it when it loads (game-playground: `PlaygroundPaths.root()`) and puts `res://` back when it goes, because a static outlives one game in a shell that loads the next. Found by game-playground on 2026-10-03; mg-smash-copter vendors the art the same way and does not set it yet, so by the same reading its guns load invisible in a delivered round (not yet rendered to confirm). A shell exported before this method existed cannot load a game that calls it.
+
 ## Validating
 
 ```bash
