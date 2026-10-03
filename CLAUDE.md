@@ -84,7 +84,7 @@ A four-bit counter *inside* the snapshot cannot do any of those. A watcher who m
 
 ## The art inside a delivered game
 
-`ZeeWeaponArtTable` and `ZeeViewArms` name `res://assets/…`, and a game delivered as a dot-cloud pack has its vendored copy under `res://dot_cloud/<id>/<version>/assets/…` instead, while the client shell carries this addon and no art. Every weapon then loads invisible, with one WARN each. `ZeeModelCache.set_asset_root(root)` rewrites `res://assets/` paths under `root` at the one place every model is loaded; the table is untouched, because it must read the same in a game that builds the art in. A game sets it when it loads (game-playground: `PlaygroundPaths.root()`) and puts `res://` back when it goes, because a static outlives one game in a shell that loads the next. Found by game-playground on 2026-10-03; mg-smash-copter vendors the art the same way and does not set it yet, so by the same reading its guns load invisible in a delivered round (not yet rendered to confirm). A shell exported before this method existed cannot load a game that calls it.
+`ZeeWeaponArtTable` and `ZeeViewArms` name `res://assets/…`, and a game delivered as a dot-cloud pack has its vendored copy under `res://dot_cloud/<id>/<version>/assets/…` instead, while the client shell carries this addon and no art. Every weapon then loads invisible, with one WARN each. `ZeeModelCache.set_asset_root(root)` rewrites `res://assets/` paths under `root` at the one place every model is loaded; the table is untouched, because it must read the same in a game that builds the art in. A game sets it when it loads (game-playground: `PlaygroundPaths.root()`) and puts `res://` back when it goes, because a static outlives one game in a shell that loads the next. Found by game-playground on 2026-10-03; mg-smash-copter vendors the art the same way and sets it in `ScClient` since 2026-10-03 (mg-smash-copter eebb467). `zee_selftest`'s art section asserts `resolve` and that `scene()` loads through it (armed). A shell exported before this method existed cannot load a game that calls it.
 
 ## Validating
 
@@ -99,7 +99,7 @@ done
 timeout 300 godot --headless --path . res://examples/zee_selftest.tscn
 ```
 
-**16 sections, 141 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
+**16 sections, 146 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
 
 ### And then look at it, because the suite cannot
 

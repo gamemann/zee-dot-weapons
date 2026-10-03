@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 141
+const CHECKS := 146
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -215,6 +215,23 @@ func _art() -> void:
 	# The fists are the one weapon with no model, and that is on purpose.
 	var fists: ZeeWeaponArt = table[ZeeWeaponIds.FISTS]
 	_check("the fists have no model", not fists.has_model())
+
+	# A delivered game mounts its copy of the art under `res://dot_cloud/<id>/<version>/`, and
+	# `set_asset_root` is how it says so. Armed: with `scene()` loading `path` rather than the
+	# resolved one, the load under a root that holds nothing succeeds and the fourth check fails.
+	var pistol: ZeeWeaponArt = table[ZeeWeaponIds.PISTOL]
+	_check("built in, a path resolves to itself", ZeeModelCache.resolve(pistol.model_path) == pistol.model_path)
+
+	ZeeModelCache.set_asset_root("res://dot_cloud/x/1.0")
+	_check(
+		"under a root, res://assets/ moves there (and the root gains its slash)",
+		ZeeModelCache.resolve("res://assets/a.glb") == "res://dot_cloud/x/1.0/assets/a.glb"
+	)
+	_check("a path outside res://assets/ is left alone", ZeeModelCache.resolve("res://addons/a.glb") == "res://addons/a.glb")
+	_check("a model is looked for under the root, not where the table says", not ZeeModelCache.scene(pistol.model_path).ok)
+
+	ZeeModelCache.set_asset_root("res://")
+	_check("putting res:// back finds it again, not the failure", ZeeModelCache.scene(pistol.model_path).ok)
 
 	_end()
 
