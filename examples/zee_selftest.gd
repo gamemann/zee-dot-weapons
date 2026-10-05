@@ -71,11 +71,14 @@ func _ready() -> void:
 
 	print("RESULT: %s" % ("PASS" if passed else "FAIL"))
 
-	# A few frames before quitting, for the effects section: a report still playing is
-	# held by the audio server until its mix thread lets go, and quitting in the frame it
-	# was started reports the playback and its stream as leaked at exit.
-	for i in range(4):
-		await get_tree().process_frame
+	# Half a second before quitting, for the effects section: a report still playing is
+	# held by the audio server until its mix thread lets go, and quitting before it has
+	# reports the playback and its stream as leaked at exit. Four frames was the first
+	# try and leaked two of each on about half the runs (2026-10-05): the mix thread runs
+	# on its own clock, not the frame's, and four headless frames can pass inside one of
+	# its periods. Stopping the voice and dropping its stream in ZeeShotFx._exit_tree did
+	# not change the rate, so the wait is the fix and it is measured: 0 in 6 runs.
+	await get_tree().create_timer(0.5).timeout
 
 	get_tree().quit(0 if passed else 1)
 
