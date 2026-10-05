@@ -176,7 +176,7 @@ static func apply(
 		# would put a burst's worth of recoil into a single frame, which reads as the
 		# weapon jumping rather than as firing.
 		if fired > 0:
-			world_model.on_fired(_recoil_for(kind))
+			world_model.on_fired(_recoil_for(kind), kind)
 
 	return {"seq": seq, "fired": fired, "kind": kind}
 

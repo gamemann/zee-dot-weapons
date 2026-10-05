@@ -91,6 +91,15 @@ enum Role {
 ## Whether the alt-fire bash is available at all.
 @export var allow_bash: bool = true
 
+@export_group("Presentation")
+
+## Whether a use draws a tracer, a flash and an impact, and plays a report.
+##
+## [b]On by default, because off was the only setting there was and every game built on
+## the pack shipped with weapons that fired nothing anybody could see or hear.[/b] A game
+## with its own effects turns it off and listens to [signal used].
+@export var effects: bool = true
+
 # --- State ------------------------------------------------------------------
 
 ## The arsenal, once [method setup] has run.
@@ -107,6 +116,7 @@ var fire_kind: int = ZeeWeaponNet.KIND_NONE
 
 var _view: ZeeViewModel = null
 var _world: ZeeWorldModel = null
+var _fx: ZeeShotFx = null
 var _player: Node = null
 var _art: Dictionary = {}
 
@@ -257,6 +267,13 @@ func _resolve_presentation() -> void:
 		if world.ok and world.value is ZeeWorldModel:
 			_world = world.value
 
+	# Only a first-person rig draws its own shots. Without a view model there is no muzzle
+	# this rig owns, and the world model draws them from the hand instead.
+	if effects and _view != null:
+		_fx = ZeeShotFx.new()
+		_fx.name = "ShotFx"
+		add_child(_fx)
+		_fx.exclude_carrier(_player)
 
 
 func _connect_arsenal() -> void:
@@ -478,6 +495,22 @@ func view_model() -> ZeeViewModel:
 	return _view
 
 
+## The shot effects, or null on a server, without a view model, or with [member effects]
+## off. For a game that wants to set the bus or turn the sound down.
+func shot_fx() -> ZeeShotFx:
+	return _fx
+
+
+## How far recoil should turn the camera this frame, in degrees: x pitch up, y yaw.
+##
+## [b]Presentation, added to the camera after the controller writes it, never to the
+## command's angles.[/b] The shot already went where the command pointed; this is the view
+## jolting as it does, and it is back inside a fifth of a second. See
+## [method ZeeViewModel.view_punch] for why the rig cannot apply it itself.
+func view_punch() -> Vector2:
+	return _view.view_punch() if _view != null else Vector2.ZERO
+
+
 func world_model() -> ZeeWorldModel:
 	return _world
 
@@ -635,8 +668,15 @@ func _record_use(outcome: DotWeaponOutcome) -> void:
 		if _view != null:
 			_view.on_used(outcome)
 
+		if _fx != null:
+			var def := arsenal.current_def()
+			_fx.play_use(outcome, _view.muzzle_transform(), def.id if def != null else &"")
+
 		if _world != null:
-			_world.on_fired(outcome.recoil)
+			# The world model draws the shot itself only when nothing here did.
+			_world.on_fired(
+				outcome.recoil, ZeeWeaponNet.kind_number(outcome.kind), effects and _fx == null
+			)
 
 
 # --- Netcode ----------------------------------------------------------------
@@ -709,6 +749,7 @@ func describe() -> Dictionary:
 		"bash_ready": _bash_ready_tick,
 		"arsenal": arsenal.describe() if arsenal != null else {},
 		"view": _view.describe() if _view != null else {},
+		"fx": _fx.describe() if _fx != null else {},
 		"world": _world.describe() if _world != null else {},
 	}
 

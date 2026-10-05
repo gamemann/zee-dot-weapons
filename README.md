@@ -42,6 +42,8 @@ dot-weapon decides that a use happened and refuses to draw anything. That is the
 - **`ZeeViewModel`** — the weapon in your own hands: arms, magazine, attachments, sway, bob, recoil, deploy, reload, charge.
 - **`ZeeWorldModel`** — the weapon in somebody else's hands, hung off their character's hand attachment. Depth-tested, shadow-casting, the right size.
 - **`ZeeWeaponPose`** — the animation arithmetic, with no `Node` in it, so a headless suite can assert that the springs settle and that nothing produces a `NaN`.
+- **`ZeeShotFx`** — what a shot looks and sounds like: a tracer to where it landed, a muzzle flash with a light, a spark and a puff on what it hit, and the report. Built by the rig in first person and by the world model for somebody else's shots; never on a server.
+- **`ZeeWeaponSound`** — a report per weapon class (light, magnum, rifle, heavy, sniper, shotgun, minigun, launcher, beam, charge, plus swings, bashes, throws and impacts), baked from arithmetic on first use. The pack ships no audio; `ZeeWeaponSound.set_stream(id, stream)` puts a real recording in front of any of them.
 - **`ZeeWeaponNet`** — four small fields on top of dot-weapon's replication, so a watcher sees the gun move. A four-bit counter rather than an RPC per shot.
 - **`ZeeWeaponRig`** — the one node a game adds per player, which wires all of the above in the order that works.
 
@@ -70,11 +72,18 @@ for shot in outcome.shots:
     combat.resolve(shot)                   # dot-combat's, on the authority only
 ```
 
-and once per render frame, for the sway and the bob:
+and once per render frame, for the sway and the bob, and the camera's half of the recoil:
 
 ```gdscript
 rig.drive_view(Vector2(yaw, pitch), speed, on_floor, crouched)
+
+var punch := rig.view_punch()              # degrees, pitch up and yaw
+fps_view.external_angles = Vector3(punch.x, punch.y, 0.0)   # or add it where you write the camera
 ```
+
+The punch is presentation: add it to the camera after your controller writes it, never to the command's angles. The shot already went where the command pointed.
+
+Tracers, flashes, impacts and sounds come with the rig and need no code. `rig.effects = false` turns them off for a game that draws its own from the `used` signal; `rig.shot_fx()` is the node, for its audio bus and volume.
 
 That is the whole integration. The rig finds the player through `DotWeaponPlayerBridge`, which is duck-typed — nothing in this addon names a player class, a controller class or a netcode class, so it works with dot-player or with your own.
 
@@ -90,6 +99,8 @@ rig.pull_net(replicated)
 # On a watcher, each snapshot:
 _seen = ZeeWeaponNet.apply(replicated, world_model, _seen)["seq"]
 ```
+
+A watcher's world model draws the flash, a tracer along the barrel and the report for each snapshot the counter moved in. It stays quiet on its own if the carrier's first-person rig is on the same machine, so a game that drives every player's world model from the counter, its own player included, does not hear its own shots twice.
 
 Ammunition stays owner-only, because exact magazine counts are information an opponent should not have. What is public is that a shot happened, which anybody in the room can see anyway.
 
@@ -109,7 +120,10 @@ Desktop, mobile and the browser from one build. Nothing here opens a socket, rea
 # A firing range you can walk around, holding any of the twenty-seven.
 godot --path . res://examples/zee_range.tscn
 
-# The headless suite: 14 sections, 133 checks.
+# The range firing on its own, saving six frames counted from the first shot.
+godot --path . res://examples/zee_range.tscn -- --weapon smg --fire --capture /tmp/smg
+
+# The headless suite: 18 sections, 168 checks.
 godot --headless --path . res://examples/zee_selftest.tscn
 
 # Every weapon at once, with a marker on each muzzle.

@@ -174,9 +174,13 @@ func equip(art: ZeeWeaponArt) -> DotResult:
 
 	_art = art
 	_id = art.id
-	_pose.weight = art.weight * maxf(0.0, feel)
+	_pose.weight = art.weight
+	_pose.feel = maxf(0.0, feel)
 
 	_holder.transform = art.view_transform()
+	# The kick turns about the hand. The holder's origin is where the art puts the weapon
+	# in the hand, so it is the grip, measured once per weapon rather than written down.
+	_pose.pivot = _holder.transform.origin
 
 	if _arms != null:
 		_arms.set_pose(art.pose)
@@ -260,6 +264,17 @@ func on_used(outcome: DotWeaponOutcome) -> void:
 ## Recoil with no outcome to hand, for a remote player whose shots arrive as a counter.
 func on_fired(recoil: Vector2 = Vector2(0.5, 0.1)) -> void:
 	_pose.punch(recoil)
+
+
+## How far recoil should turn the camera this frame, in degrees: x pitch up, y yaw.
+##
+## [b]This node cannot apply it, and that is not an omission.[/b] It is a child of the
+## camera, and every controller in this family writes the camera's angles from scratch
+## each frame — so anything added here is overwritten, or, under a controller that adds
+## rather than writes, never taken back off. The game adds it where it writes the camera:
+## `DotFpsView.external_angles`, or its own line.
+func view_punch() -> Vector2:
+	return _pose.view_punch()
 
 
 ## How far through a switch, 1 fully in hand and 0 fully out of frame.

@@ -52,11 +52,15 @@ const RECOIL_SHARE := 0.35
 ## toggle rather than an animation.
 @export var hide_while_switching: bool = true
 
+## Whether a shot is drawn and heard from this hand. See [method on_fired].
+@export var effects: bool = true
+
 var _holder: Node3D = null
 var _weapon: Node3D = null
 var _attachments: Array[Node3D] = []
 var _art: ZeeWeaponArt = null
 var _id: StringName = &""
+var _fx: ZeeShotFx = null
 
 ## Recoil offset in metres and its decay, so a watcher sees the gun move when it fires.
 var _kick: float = 0.0
@@ -180,11 +184,33 @@ func muzzle_transform() -> Transform3D:
 
 # --- Being told what happened -----------------------------------------------
 
-## The weapon fired. [param recoil] is the pitch and yaw a behaviour asked for.
-func on_fired(recoil: Vector2 = Vector2(0.5, 0.1)) -> void:
+## The weapon fired. [param recoil] is the pitch and yaw a behaviour asked for, and
+## [param kind] a [ZeeWeaponNet] kind number.
+##
+## [param with_effects] draws the shot from this hand — a flash, a tracer along the barrel
+## and the report — and is what a watcher sees of somebody else firing. It stands down by
+## itself when the carrier's own first-person rig is on this machine, because that rig has
+## already drawn the shot from the view model's muzzle and a second report a few
+## centimetres away is the same gun going off twice.
+func on_fired(
+	recoil: Vector2 = Vector2(0.5, 0.1),
+	kind: int = ZeeWeaponNet.KIND_SHOT,
+	with_effects: bool = true
+) -> void:
 	if not is_finite(recoil.x):
 		return
 	_kick = minf(_kick + recoil.x * 0.008 * RECOIL_SHARE, 0.08)
+
+	if with_effects and effects and is_inside_tree() and not _carrier_draws_its_own():
+		_shot_fx().play_remote(kind, muzzle_transform(), muzzle_direction(), _id)
+
+
+## Which way the barrel points in the world: the art's forward through the model's basis.
+func muzzle_direction() -> Vector3:
+	if _weapon == null or _art == null:
+		return -global_basis.z.normalized()
+
+	return (_weapon.global_basis * _art.model_forward).normalized()
 
 
 ## Whether the character is mid-switch. Hides the model while they are, if asked to.
@@ -209,6 +235,57 @@ func _process(delta: float) -> void:
 
 
 # --- Internals --------------------------------------------------------------
+
+## The effects node, built the first time this hand fires.
+##
+## Lazily, because most world models in a match belong to somebody who has not fired yet,
+## and thirty effects nodes waiting to be needed is thirty nodes in every frame's walk.
+func _shot_fx() -> ZeeShotFx:
+	if _fx != null and is_instance_valid(_fx):
+		return _fx
+
+	_fx = ZeeShotFx.new()
+	_fx.name = "ShotFx"
+	add_child(_fx)
+	_fx.exclude_carrier(_carrier_body())
+	return _fx
+
+
+## The nearest physics body above this hand: the character carrying it, whose own capsule
+## the barrel starts inside.
+func _carrier_body() -> Node:
+	var node := get_parent()
+	var depth := 0
+
+	while node != null and depth < 8:
+		if node is CollisionObject3D:
+			return node
+		node = node.get_parent()
+		depth += 1
+
+	return null
+
+
+## Whether a first-person rig with its own effects carries this hand on this machine.
+##
+## [b]Asked of the tree, not configured, and the configuration was tried in the head
+## first.[/b] A game that forgot to switch the local player's world model off would play
+## every one of its own shots twice, a few centimetres apart — and the game that would
+## forget is the one that drives every player's world model from the replicated counter,
+## its own included, which is the simplest way to write it.
+func _carrier_draws_its_own() -> bool:
+	var node := get_parent()
+	var depth := 0
+
+	while node != null and depth < 8:
+		for child in node.get_children():
+			if child is ZeeWeaponRig and (child as ZeeWeaponRig).shot_fx() != null:
+				return true
+		node = node.get_parent()
+		depth += 1
+
+	return false
+
 
 func _apply_shadows() -> void:
 	var mode := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_shadow \

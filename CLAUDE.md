@@ -64,7 +64,45 @@ So the rig listens to the signals the arsenal *does* emit and counts the ticks i
 Two consequences worth keeping:
 
 - **Everything the pose is handed is clamped and checked for finiteness.** One `NaN` reaching a `Transform3D` makes the weapon vanish with no error anywhere, and it presents as "the view model broke".
-- **The recoil spring is integrated semi-implicitly.** Explicit Euler adds energy at every step, so a spring that should settle grows instead; it takes a few seconds of held automatic fire to become obvious and reads as a tuning problem rather than an integration one. There is a section in the suite that holds the trigger for thirty seconds.
+- **The recoil spring is critically damped and solved exactly, and both integrators were tried first.** Explicit Euler adds energy at every step, so a spring that should settle grows instead; it takes a few seconds of held automatic fire to become obvious and reads as a tuning problem rather than an integration one. Semi-implicit Euler fixed that and, at the stiffness the recoil now runs at, brought two quieter faults: it is unstable past w·dt ≈ 2, which a 10 fps frame is, and under critical damping it bled about a third of every kick away in its first step, so the climb asked for was never the climb drawn. The closed form has neither. There is a section in the suite that holds the trigger for thirty seconds, and one that asserts the climb drawn at 144 fps and at 30 is the climb asked for.
+
+## Recoil, and what was wrong with it
+
+Reported on 2026-10-05 as "very bad", and measured before anything was changed (one shot, at the weapon's real weight and recoil):
+
+| | before | after |
+| --- | --- | --- |
+| minigun / smg | 0.6° / 0.6° | 0.5° / 0.9° |
+| sniper | **17.0° and 13 cm back** | 5.7° and 4.5 cm |
+| hardest ÷ softest | 28 | 11 |
+| sideways | always the same way | either way |
+| the camera | never moved | `view_punch()`, 30% of the climb |
+
+Four faults, each its own line in `ZeeWeaponPose`:
+
+- **Weight multiplied the kick a second time.** A behaviour's `recoil_pitch` already says how hard a weapon kicks; scaling it by `ZeeWeaponArt.weight` as well counted the sniper's size twice. Weight now slows the spring (by its square root) and scales sway and bob, and does not touch the size of a kick.
+- **The range was linear.** Recoil runs 0.12 to 4.0 across the pack, which is right for a camera climbing and wrong for a gun in a hand. `kick_degrees()` compresses it: `kick_pitch · r / (1 + r · kick_knee)`.
+- **The gun turned about the eye.** `Animated` sits at the camera, so a rotation there carried the whole weapon up the screen instead of tipping the muzzle. `pivot` is the holder's rest origin, which is the grip, and the kick turns about that.
+- **The yaw had no sign.** Every behaviour hands over a positive `recoil_yaw`, and it was applied as given. `punch()` picks a side per shot.
+
+**The camera's half is the game's to apply**, through `rig.view_punch()`. The view model is a child of the camera, and every controller in this family writes the camera's angles from scratch each frame, so anything the pack added there was overwritten before it was drawn. dot-player-controller's `DotFpsView.external_angles` was added for it (beside `external_offset`, for the same reason); mg-smash-copter adds it on its own camera line. It is never added to a command: the shot went where the command pointed.
+
+## A shot is seen and heard, and was neither
+
+Reported on 2026-10-05 as "doesn't shoot any bullets, and no sounds". Both were true of every game on the pack: the rig decided the use, the ammunition went down, the server resolved the hit, and the only thing a player saw was the gun kick. `ZeeViewModel.model_ready` said a game could hang a muzzle flash off it, and no game did. "The half that draws" drew the gun and stopped.
+
+`ZeeShotFx` is the rest: a tracer, a flash with a light, a spark and a puff on what was hit, and a report from `ZeeWeaponSound`. Four decisions in it, each the obvious alternative being wrong:
+
+- **The tracer ends where a presentation raycast from the eye says, not where the server's hit registration did.** A client does not know what lag-compensated hitboxes decided and must not wait to be told. It is traced from the eye (where the shot really started) and drawn from the muzzle (where the picture should leave).
+- **Tracers and impacts are sized by distance from the camera.** A tracer is seen almost end-on, and 2 cm at 30 m is one pixel; the first render showed a sniper shot as a yellow fleck.
+- **The billboards need a texture and `billboard_keep_scale`.** A quad with no texture is a square of light, and a billboard ignores its node's scale without the flag; the first flash was a pale square a tenth of the screen across.
+- **A world model whose carrier has a first-person rig with effects stays quiet** (`_carrier_draws_its_own`). game-playground drives every player's world model from the replicated counter, its own player's included, which is the simplest way to write it, and would otherwise hear every one of its own shots twice.
+
+**The sounds are baked, because there is no CC0 set of twenty-seven matched weapon reports to vendor.** dot-audio's synthesiser is one sine sweep with unfiltered noise and three shot voices, which is right for a placeholder of anything and wrong for twenty-seven weapons that should be told apart; `ZeeWeaponSound` layers a band-passed crack, a swept body and a low-passed tail per class, deterministically, so the suite can assert about the bytes. `set_stream(id_or_class, stream)` puts a recording in front of it one weapon at a time.
+
+**Rendering found that the range had been shooting from the world origin for as long as it existed.** Its rig has no `player_ref` (the range's player is a bare body the player bridge cannot read), so every shot came out of (0, 0, 0) along -Z — `_resolve_carrier`'s server bug, in the example. Its hit marks landed where a player aiming straight ahead expected, because the targets stand on that axis. The first tracer ran from the gun to the floor under the player's feet. The range hands the rig a context from the controller's eye now; the eye and not the camera, because the camera carries the punch.
+
+`zee_range -- --weapon smg --fire --capture <prefix>` is how a machine with no hands sees any of it: the trigger pulls itself, and six frames are saved counted from the first shot, with the clock slowed twenty times so that a software renderer's tenth-of-a-second frames are a flip-book of one shot rather than a picture of the reload after it.
 
 ## Replication is a counter, not an event
 
@@ -99,7 +137,7 @@ done
 timeout 300 godot --headless --path . res://examples/zee_selftest.tscn
 ```
 
-**16 sections, 146 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
+**18 sections, 168 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
 
 ### And then look at it, because the suite cannot
 

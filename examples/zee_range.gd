@@ -7,6 +7,8 @@ extends Node
 ##
 ## # Exits on its own, so a screenshot sweep can open it:
 ## godot --path . res://examples/zee_range.tscn -- --seconds 3 --weapon sniper
+## godot --path . res://examples/zee_range.tscn -- --weapon smg --fire   # trigger held
+## ... -- --weapon smg --fire --capture /tmp/smg   # frames 1-14 after the first shot
 ## [/codeblock]
 ##
 ## WASD to move, space to jump, ctrl to crouch, mouse to look, left click to fire, right
@@ -43,12 +45,19 @@ var _input := ZeeWeaponInput.make()
 ## The simulation tick. Advanced in `_physics_process`, never read from a clock.
 var _tick: int = 0
 
+## Whether `--fire` was passed.
+var _auto_fire: bool = false
+
+## Whether a `--capture` sequence has started.
+var _capturing: bool = false
+
 ## Every shot's impact, drawn as a short-lived marker so a hit is visible.
 var _markers: Array[Node3D] = []
 
 
 func _ready() -> void:
 	ZeeWeaponInput.register_default_actions()
+	_auto_fire = OS.get_cmdline_user_args().has("--fire")
 	_build_world()
 	_build_weapons()
 	_arm_exit_timer()
@@ -142,6 +151,12 @@ func _process(_delta: float) -> void:
 		state.crouch_fraction > 0.5
 	)
 
+	# The camera's half of the recoil. Through the view's own offset, because the view
+	# writes the camera's angles from scratch every frame and would undo anything set here.
+	if _controller.view != null:
+		var punch := _rig.view_punch()
+		_controller.view.external_angles = Vector3(punch.x, punch.y, 0.0)
+
 	_draw_readout()
 
 
@@ -156,7 +171,26 @@ func _physics_process(_delta: float) -> void:
 	_input.set_aim(state.yaw, state.pitch)
 
 	var command := _input.take(8)
-	var outcome := _rig.simulate_tick(command, _tick)
+
+	# `--fire` pulls the trigger on its own, pressed and released every few ticks so a
+	# semi-automatic fires too: a screenshot taken at a fixed second then catches a shot in
+	# flight, which is the only way a machine with no hands sees a tracer.
+	if _auto_fire:
+		command.set_button(DotWeaponCommand.BUTTON_ATTACK, (_tick / 6) % 2 == 0)
+
+	# [b]The shot leaves the controller's eye, handed over explicitly.[/b] This rig has no
+	# player_ref — the range's player is a bare body with no `component()` for the bridge
+	# to ask — so left to build its own context it fired every shot from the world origin
+	# along -Z, the bug `ZeeWeaponRig._resolve_carrier` documents for servers. Nobody saw it
+	# for as long as the range existed because the targets sit on that axis: the hit marks
+	# landed where a player aiming straight ahead expected them. The first tracer drawn
+	# showed it, running from the gun to the floor under the player's feet.
+	#
+	# The eye, not the camera: the camera carries the recoil punch and the landing dip, and
+	# a shot aimed along those would make presentation part of where a bullet goes.
+	var eye := _controller.eye_transform()
+	var ctx := DotWeaponContext.make(1, _tick, eye.origin, -eye.basis.z)
+	var outcome := _rig.simulate_tick(command, _tick, ctx)
 
 	# The range is its own authority, so it resolves its own shots. A client would send
 	# the command and let the server do this.
@@ -183,6 +217,8 @@ func _unhandled_input(event: InputEvent) -> void:
 # --- Being told what happened -----------------------------------------------
 
 func _on_used(outcome: DotWeaponOutcome) -> void:
+	_capture_shot()
+
 	# Nothing here may run on a replayed tick, and nothing here is replayed: a range is
 	# its own authority so there is nothing to reconcile. In a networked game this is
 	# where `ctx.replayed` earns its keep.
@@ -425,6 +461,36 @@ func _draw_readout() -> void:
 
 
 # --- Exiting ----------------------------------------------------------------
+
+## With `--capture prefix`, saves the frames just after the first shot and quits.
+##
+## [b]Counted from the shot, not from the clock.[/b] A screenshot taken at a fixed second
+## under a software renderer lands wherever the start-up happened to leave it — usually
+## mid-reload, with the magazine already emptied — and a tracer lives a tenth of a second.
+func _capture_shot() -> void:
+	var prefix := _argument("--capture")
+
+	if prefix == "" or _capturing:
+		return
+
+	_capturing = true
+
+	# A software renderer draws a frame every tenth of a second or so, and a tracer lives
+	# about that long: at full speed the capture shows the flash and nothing after it.
+	# Slowed twenty times, the frames are a flip-book of the shot.
+	Engine.time_scale = 0.05
+
+	var frame := 0
+	for wanted in [1, 2, 3, 5, 8, 14]:
+		while frame < wanted:
+			await RenderingServer.frame_post_draw
+			frame += 1
+		var path := "%s_%02d.png" % [prefix, wanted]
+		var err := get_viewport().get_texture().get_image().save_png(path)
+		print("captured %s (%s)" % [path, error_string(err)])
+
+	get_tree().quit()
+
 
 ## Quits after `--seconds N`, so a screenshot sweep can open this without a person.
 func _arm_exit_timer() -> void:

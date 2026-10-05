@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 146
+const CHECKS := 168
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -43,11 +43,13 @@ func _ready() -> void:
 	_bash()
 	_pose()
 	_pose_stability()
+	_recoil()
 	_net()
 	_rig()
 	_rig_carrier()
 	_rig_rollback()
 	_view_models()
+	_effects()
 	_input_bindings()
 
 	print("")
@@ -68,6 +70,12 @@ func _ready() -> void:
 	var passed := _failures == 0 and _sections_entered == _sections_finished and _checks == CHECKS
 
 	print("RESULT: %s" % ("PASS" if passed else "FAIL"))
+
+	# A few frames before quitting, for the effects section: a report still playing is
+	# held by the audio server until its mix thread lets go, and quitting in the frame it
+	# was started reports the playback and its stream as leaked at exit.
+	for i in range(4):
+		await get_tree().process_frame
 
 	get_tree().quit(0 if passed else 1)
 
@@ -546,6 +554,131 @@ func _pose_stability() -> void:
 	_end()
 
 
+func _recoil() -> void:
+	_begin("recoil")
+
+	# Every gun's single-shot climb, at its real weight and its real recoil.
+	var climbs := {}
+
+	for def: DotWeaponDef in ZeeWeaponPack.weapons():
+		var b := def.tuning as DotWeaponBallistics
+		if b == null or b.recoil_pitch <= 0.0:
+			continue
+
+		var art := ZeeWeaponArtTable.get_art(def.id)
+		var pose := ZeeWeaponPose.make(art.weight if art != null else 1.0)
+		pose.punch(Vector2(b.recoil_pitch, b.recoil_yaw))
+
+		var peak := 0.0
+		for i in range(144):
+			pose.advance(1.0 / 144.0, Vector2.ZERO, 0.0, true)
+			peak = maxf(peak, (pose.describe()["kick_rotation"] as Vector3).x)
+
+		climbs[def.id] = peak
+
+	var hardest := 0.0
+	var softest := INF
+	for id in climbs:
+		hardest = maxf(hardest, climbs[id])
+		softest = minf(softest, climbs[id])
+
+	# Armed: before the curve, one sniper shot climbed 17 degrees and 13 cm, one minigun
+	# shot 0.6, and the ratio between them was 28.
+	_check(
+		"one sniper shot climbs under eight degrees (%.1f)" % climbs[ZeeWeaponIds.SNIPER],
+		climbs[ZeeWeaponIds.SNIPER] < 8.0
+	)
+	_check(
+		"the hardest kick is under fifteen times the softest (%.1f / %.1f)" % [hardest, softest],
+		hardest / maxf(0.001, softest) < 15.0
+	)
+	_check(
+		"an automatic's kick is big enough to see (smg %.2f)" % climbs[ZeeWeaponIds.SMG],
+		climbs[ZeeWeaponIds.SMG] > 0.75
+	)
+
+	# The climb asked for is the climb drawn. A semi-implicit step under critical damping
+	# bled a third of every kick away, so the number tuned was never the number seen.
+	var asked := ZeeWeaponPose.make(1.0).kick_degrees(2.0)
+	var drawn: Array[float] = []
+	for rate in [144.0, 30.0]:
+		var p := ZeeWeaponPose.make(1.0)
+		p.punch(Vector2(2.0, 0.0))
+		var top := 0.0
+		for i in range(int(rate)):
+			p.advance(1.0 / rate, Vector2.ZERO, 0.0, true)
+			top = maxf(top, (p.describe()["kick_rotation"] as Vector3).x)
+		drawn.append(top)
+	_check(
+		"the climb drawn is the climb asked for, at 144 fps and at 30 (%.2f: %.2f, %.2f)"
+		% [asked, drawn[0], drawn[1]],
+		absf(drawn[0] - asked) / asked < 0.05 and absf(drawn[1] - asked) / asked < 0.1
+	)
+
+	# Armed: the yaw was applied as the behaviour handed it, always positive, so every
+	# shot pushed the gun the same way and a held trigger walked it off to one side.
+	var sides := ZeeWeaponPose.make(1.0)
+	var left := 0
+	var right := 0
+	for i in range(20):
+		var before := (sides.describe()["kick_rotation"] as Vector3).y
+		sides.punch(Vector2(0.0, 1.0))
+		sides.advance(1.0 / 120.0, Vector2.ZERO, 0.0, true)
+		var moved := (sides.describe()["kick_rotation"] as Vector3).y - before
+		if moved > 0.0:
+			right += 1
+		elif moved < 0.0:
+			left += 1
+		for j in range(60):
+			sides.advance(1.0 / 60.0, Vector2.ZERO, 0.0, true)
+	_check(
+		"a sideways kick goes both ways over twenty shots (%d left, %d right)" % [left, right],
+		left >= 4 and right >= 4
+	)
+
+	# About the grip: the muzzle rises and the hand stays where it is, rather than the
+	# whole weapon being carried up the screen about the eye.
+	var grip := Vector3(0.18, -0.2, -0.4)
+	var tipped := ZeeWeaponPose.make(1.0)
+	tipped.pivot = grip
+	tipped.punch(Vector2(3.0, 0.0))
+	for i in range(6):
+		tipped.advance(1.0 / 144.0, Vector2.ZERO, 0.0, true)
+	var at := tipped.offset()
+	var muzzle := grip + Vector3(0.0, 0.0, -0.35)
+	var rise := (at * muzzle).y - muzzle.y
+	var hand := (at * grip).y - grip.y
+	_check(
+		"the kick tips the muzzle up about the grip (muzzle %+.3f m, grip %+.3f m)" % [rise, hand],
+		rise > 0.01 and absf(hand) < 0.005
+	)
+
+	var punch := tipped.view_punch()
+	var climb := (tipped.describe()["kick_rotation"] as Vector3).x
+	_check(
+		"the camera takes a fraction of the climb, upward (%.2f of %.2f)" % [punch.x, climb],
+		punch.x > 0.0 and punch.x < climb
+	)
+	for i in range(144):
+		tipped.advance(1.0 / 144.0, Vector2.ZERO, 0.0, true)
+	_check(
+		"and is back inside a second (%.3f)" % tipped.view_punch().length(),
+		tipped.view_punch().length() < 0.05
+	)
+
+	var still := ZeeWeaponPose.make(1.0)
+	still.feel = 0.0
+	still.punch(Vector2(3.0, 1.0))
+	for i in range(10):
+		still.advance(1.0 / 60.0, Vector2(5.0, 2.0), 6.0, true)
+	_check(
+		"weapon motion turned off is off",
+		still.offset().origin.length() < 0.0001 and still.view_punch().length() < 0.0001
+	)
+
+	_end()
+
+
 func _net() -> void:
 	_begin("replication")
 
@@ -843,6 +976,149 @@ func _make_arsenal() -> DotWeaponArsenal:
 	arsenal.authority = true
 	add_child(arsenal)
 	return arsenal
+
+
+func _effects() -> void:
+	_begin("shots are seen and heard")
+
+	# --- Sound ---
+	var silent: Array[String] = []
+	var clicks: Array[String] = []
+
+	for sound_class in ZeeWeaponSound.RECIPES.keys():
+		var wav := ZeeWeaponSound.stream(sound_class) as AudioStreamWAV
+		if wav == null or wav.data.size() < 200 or _wav_peak(wav) < 0.2:
+			silent.append(String(sound_class))
+		elif wav.data.decode_s16(wav.data.size() - 2) != 0:
+			clicks.append(String(sound_class))
+
+	_check("every sound class bakes something audible: %s" % ", ".join(silent), silent.is_empty())
+	_check(
+		"and every one ends at exactly zero, so none of them clicks: %s" % ", ".join(clicks),
+		clicks.is_empty()
+	)
+
+	var rifle := ZeeWeaponSound.stream(ZeeWeaponSound.RIFLE) as AudioStreamWAV
+	var again := ZeeWeaponSound.bake(
+		ZeeWeaponSound.RECIPES[ZeeWeaponSound.RIFLE], hash(ZeeWeaponSound.RIFLE)
+	)
+	_check("the same class bakes the same bytes twice", again.data == rifle.data)
+
+	# A gun added to the pack without a sound class falls back to the rifle's, silently.
+	var unclassed: Array[String] = []
+	for def: DotWeaponDef in ZeeWeaponPack.weapons():
+		if def.has_tag(ZeeWeaponIds.TAG_MELEE) or def.has_tag(ZeeWeaponIds.TAG_THROWN):
+			continue
+		if not ZeeWeaponSound.WEAPONS.has(def.id):
+			unclassed.append(String(def.id))
+	_check("every gun in the pack names its own sound: %s" % ", ".join(unclassed), unclassed.is_empty())
+
+	_check(
+		"a bash from a sniper sounds like a bash, not a sniper",
+		ZeeWeaponSound.class_for(ZeeWeaponIds.SNIPER, DotWeaponOutcome.KIND_SWING)
+		== ZeeWeaponSound.SWING
+	)
+
+	var recorded := AudioStreamWAV.new()
+	ZeeWeaponSound.set_stream(ZeeWeaponIds.PISTOL, recorded)
+	var used_recording := ZeeWeaponSound.stream_for(
+		ZeeWeaponIds.PISTOL, DotWeaponOutcome.KIND_SHOT
+	) == recorded
+	ZeeWeaponSound.set_stream(ZeeWeaponIds.PISTOL, null)
+	_check(
+		"a game's own recording outranks the synthesiser, and comes back out",
+		used_recording
+		and ZeeWeaponSound.stream_for(ZeeWeaponIds.PISTOL, DotWeaponOutcome.KIND_SHOT) != recorded
+	)
+
+	# --- A first-person rig ---
+	# Armed: before ZeeShotFx, a use drew the gun kicking and nothing else at all.
+	var carrier := Node3D.new()
+	carrier.name = "FxCarrier"
+	add_child(carrier)
+
+	var view := ZeeViewModel.new()
+	view.show_arms = false
+	carrier.add_child(view)
+
+	var rig := ZeeWeaponRig.new()
+	rig.role = ZeeWeaponRig.Role.LOCAL
+	rig.authority = true
+	rig.tick_rate = ZeeWeaponPack.TICK_RATE
+	rig.player_ref = DotNodeRef.of_path(^"..")
+	rig.view_model_ref = DotNodeRef.of_path(view.get_path())
+	carrier.add_child(rig)
+
+	var res := rig.setup()
+	_check("a first-person rig sets up: %s" % _why(res), res.ok)
+	_check("and has shot effects", rig.shot_fx() != null)
+
+	rig.give(ZeeWeaponIds.SHOTGUN)
+	var shotgun := rig.arsenal.catalogue.get_def(ZeeWeaponIds.SHOTGUN)
+	rig.arsenal.select(shotgun.slot, 0)
+	_run_rig(rig, 0, 60, 0)
+
+	var pellets := 0
+	for tick in range(60, 200):
+		var command := DotWeaponCommand.new()
+		command.buttons = DotWeaponCommand.BUTTON_ATTACK
+		var outcome := rig.simulate_tick(command, tick)
+		if outcome != null and outcome.used and not outcome.shots.is_empty():
+			pellets = outcome.shots[0].pellets.size()
+			break
+
+	var fx := rig.shot_fx()
+	var tracers := fx.tracer_count() if fx != null else 0
+	var wanted := mini(maxi(1, pellets), ZeeShotFx.MAX_TRACERS_PER_USE)
+	_check(
+		"a shotgun blast draws a tracer per pellet, up to the cap (%d of %d)" % [tracers, pellets],
+		pellets > 0 and tracers == wanted
+	)
+	_check(
+		"and plays a report",
+		fx != null and int(fx.describe()["voices"]) >= 1
+	)
+
+	# The local player's own world model, driven by the replicated counter the way
+	# game-playground drives every player's: it must not play the shot a second time.
+	var own := ZeeWorldModel.new()
+	carrier.add_child(own)
+	own.equip(ZeeWeaponArtTable.get_art(ZeeWeaponIds.SHOTGUN))
+	own.on_fired(Vector2(1.0, 0.1), ZeeWeaponNet.KIND_SHOT)
+	_check(
+		"the carrier's own world model stays quiet beside its first-person rig",
+		own.get_node_or_null(^"ShotFx") == null
+	)
+
+	# Somebody else's: nothing on this machine draws their shot but their hand.
+	var stranger := Node3D.new()
+	add_child(stranger)
+	var theirs := ZeeWorldModel.new()
+	stranger.add_child(theirs)
+	theirs.equip(ZeeWeaponArtTable.get_art(ZeeWeaponIds.RIFLE))
+	theirs.on_fired(Vector2(0.4, 0.1), ZeeWeaponNet.KIND_SHOT)
+	var their_fx := theirs.get_node_or_null(^"ShotFx") as ZeeShotFx
+	_check(
+		"somebody else's shot is drawn from their hand",
+		their_fx != null and their_fx.tracer_count() == 1
+	)
+
+	var server := _make_rig()
+	server.setup()
+	_check("a server rig draws and plays nothing", server.shot_fx() == null)
+
+	_cleanup(server)
+	carrier.queue_free()
+	stranger.queue_free()
+	_end()
+
+
+## The loudest sample in a 16-bit stream, from 0 to 1.
+static func _wav_peak(wav: AudioStreamWAV) -> float:
+	var peak := 0
+	for i in range(0, wav.data.size() - 1, 2):
+		peak = maxi(peak, absi(wav.data.decode_s16(i)))
+	return float(peak) / 32767.0
 
 
 func _make_rig() -> ZeeWeaponRig:
