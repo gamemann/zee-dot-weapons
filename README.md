@@ -44,7 +44,7 @@ dot-weapon decides that a use happened and refuses to draw anything. That is the
 - **`ZeeWorldModel`** — the weapon in somebody else's hands, hung off their character's hand attachment. Depth-tested, shadow-casting, the right size.
 - **`ZeeWeaponPose`** — the animation arithmetic, with no `Node` in it, so a headless suite can assert that the springs settle and that nothing produces a `NaN`.
 - **`ZeeShotFx`** — what a shot looks and sounds like: a tracer to where it landed, a muzzle flash with a light, a spark and a puff on what it hit, and the report. Built by the rig in first person and by the world model for somebody else's shots; never on a server.
-- **`ZeeWeaponSound`** — a report per weapon class (light, magnum, rifle, heavy, sniper, shotgun, minigun, launcher, beam, charge, plus swings, bashes, throws and impacts), baked from arithmetic on first use. The pack ships no audio; `ZeeWeaponSound.set_stream(id, stream)` puts a real recording in front of any of them.
+- **`ZeeWeaponSound`** — a report per weapon class (light, magnum, rifle, heavy, sniper, shotgun, minigun, launcher, beam, charge, plus swings, bashes, throws, impacts and the two halves of a reload), baked from arithmetic on first use. The pack ships no audio; `ZeeWeaponSound.set_stream(id, stream)` puts a real recording in front of any of them.
 - **`ZeeWeaponNet`** — four small fields on top of dot-weapon's replication, so a watcher sees the gun move. A four-bit counter rather than an RPC per shot.
 - **`ZeeWeaponRig`** — the one node a game adds per player, which wires all of the above in the order that works.
 

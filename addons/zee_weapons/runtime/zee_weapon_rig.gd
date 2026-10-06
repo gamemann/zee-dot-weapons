@@ -39,6 +39,10 @@ signal bashed(outcome: DotWeaponOutcome)
 ## The weapon in hand changed, once the deploy has finished.
 signal equipped(id: StringName)
 
+## A reload's sound was played: [constant ZeeWeaponSound.RELOAD_OUT] when it starts,
+## [constant ZeeWeaponSound.RELOAD_IN] when it finishes. Never on a server or in a replay.
+signal reload_sound(stage: StringName)
+
 ## Which role this rig is playing.
 enum Role {
 	## The player at this keyboard. Predicts, draws a view model and a world model.
@@ -619,6 +623,8 @@ func _on_reload_started(slot: int) -> void:
 	if carried == null:
 		return
 
+	_reload_sound(ZeeWeaponSound.RELOAD_OUT)
+
 	_reload_started = _last_tick
 	_reload_ticks = maxi(
 		1,
@@ -629,6 +635,21 @@ func _on_reload_started(slot: int) -> void:
 
 func _on_reload_finished(_slot: int, _rounds: int) -> void:
 	_reload_started = -1
+	_reload_sound(ZeeWeaponSound.RELOAD_IN)
+
+
+## Plays one half of a reload's sound, under the same rule as a shot's report: never on a
+## server and never on a replayed tick — a correction that replayed across a reload would
+## otherwise click the magazine out twice.
+func _reload_sound(stage: StringName) -> void:
+	if _replaying or role == Role.SERVER:
+		return
+
+	reload_sound.emit(stage)
+
+	if _fx != null:
+		var at: Vector3 = (_player as Node3D).global_position if _player is Node3D else Vector3.ZERO
+		_fx.play_reload(stage, at)
 
 
 ## The holster half finished and the deploy half began.

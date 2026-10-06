@@ -42,6 +42,10 @@ const SWING := &"swing"
 const BASH := &"bash"
 const THROW := &"throw"
 const IMPACT := &"impact"
+## The magazine coming out, and going back in with the action worked: the two halves of a
+## reload a player hears, so a reload is audible from behind a wall as well as visible.
+const RELOAD_OUT := &"reload_out"
+const RELOAD_IN := &"reload_in"
 
 ## How each class is built. Every field is optional; the defaults are silence.
 ##
@@ -134,6 +138,20 @@ const RECIPES := {
 		"length": 0.09, "gain": 0.45,
 		"crack": 0.90, "crack_hz": 3600.0, "crack_s": 0.007,
 		"body": 0.40, "body_hz": 420.0, "body_to": 190.0, "body_s": 0.012,
+	},
+	# Metal on metal, small and dry: a click with a little ring, no room at all. Quieter
+	# than an impact, because it is a sound for the person reloading and whoever is close.
+	RELOAD_OUT: {
+		"length": 0.14, "gain": 0.40,
+		"crack": 0.70, "crack_hz": 3000.0, "crack_s": 0.006,
+		"body": 0.30, "body_hz": 640.0, "body_to": 320.0, "body_s": 0.015,
+	},
+	# Seated and racked: a firmer click and the slide's short rush of air behind it.
+	RELOAD_IN: {
+		"length": 0.24, "gain": 0.50,
+		"crack": 0.90, "crack_hz": 4200.0, "crack_s": 0.008,
+		"body": 0.50, "body_hz": 380.0, "body_to": 160.0, "body_s": 0.020,
+		"whoosh": 0.25, "whoosh_lo": 800.0, "whoosh_hi": 2400.0,
 	},
 }
 

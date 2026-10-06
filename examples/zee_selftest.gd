@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 180
+const CHECKS := 183
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -785,6 +785,38 @@ func _rig() -> void:
 	# And it has its own cooldown, so holding it does not swing every tick.
 	_run_rig(rig, 204, 240, DotWeaponCommand.BUTTON_ALT)
 	_check("holding it does not swing every tick", bashes.size() < 4)
+
+	# A reload is heard: out when it starts, in when it ends — on the player's own machine,
+	# never on a server, never in a replay. An Array for the reason the bash count is one.
+	var reloads := func(role: ZeeWeaponRig.Role, replay: bool) -> Array[StringName]:
+		var heard: Array[StringName] = []
+		var r := ZeeWeaponRig.new()
+		r.role = role
+		r.authority = true
+		r.tick_rate = ZeeWeaponPack.TICK_RATE
+		add_child(r)
+		r.setup()
+		r.give_everything()
+		r.arsenal.select(ZeeWeaponIds.SLOT_PRIMARY, 0)
+		r.reload_sound.connect(func(stage: StringName) -> void: heard.append(stage))
+		_run_rig(r, 0, 60, 0)
+		_run_rig(r, 60, 75, DotWeaponCommand.BUTTON_ATTACK)
+		if replay:
+			r.begin_replay()
+		_run_rig(r, 75, 77, DotWeaponCommand.BUTTON_RELOAD)
+		_run_rig(r, 77, 500, 0)
+		if replay:
+			r.end_replay()
+		_cleanup(r)
+		return heard
+
+	var local: Array[StringName] = reloads.call(ZeeWeaponRig.Role.LOCAL, false)
+	_check(
+		"a reload is heard, out then in (%s)" % ", ".join(local),
+		local == [ZeeWeaponSound.RELOAD_OUT, ZeeWeaponSound.RELOAD_IN]
+	)
+	_check("but not on a server", (reloads.call(ZeeWeaponRig.Role.SERVER, false) as Array).is_empty())
+	_check("and not in a replay", (reloads.call(ZeeWeaponRig.Role.LOCAL, true) as Array).is_empty())
 
 	_cleanup(rig)
 	_end()

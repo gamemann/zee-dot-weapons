@@ -350,6 +350,12 @@ func _impact(at: Vector3, normal: Vector3) -> void:
 	_play(ZeeWeaponSound.stream(ZeeWeaponSound.IMPACT), at, -8.0)
 
 
+## A reload's sound at [param at]: [param stage] is [constant ZeeWeaponSound.RELOAD_OUT] or
+## [constant ZeeWeaponSound.RELOAD_IN]. The rig decides when; this only plays it.
+func play_reload(stage: StringName, at: Vector3) -> void:
+	_play(ZeeWeaponSound.stream(stage), at, -4.0)
+
+
 func _report(id: StringName, kind: StringName, at: Vector3) -> void:
 	if not sounds or kind == DotWeaponOutcome.KIND_NONE:
 		return
