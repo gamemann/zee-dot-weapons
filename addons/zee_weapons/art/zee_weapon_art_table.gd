@@ -293,6 +293,10 @@ static func marksman() -> ZeeWeaponArt:
 	var art := _blaster(ZeeWeaponIds.MARKSMAN, "blaster-p", POSE_RIFLE)
 	art.with_magazine(CLIP_LARGE, Vector3(0.0, -0.16, -0.02))
 	art.with_attachment(SCOPE_SMALL, Vector3(0.0, 0.19, 0.06))
+	# A scope it carries, so a scope it looks through. Less zoom than the sniper's: it is
+	# the rifle for the middle distance, and a 4x view there loses the target sideways.
+	art.aim_scoped = true
+	art.aim_zoom = 0.5
 	return art
 
 
@@ -314,6 +318,9 @@ static func sniper() -> ZeeWeaponArt:
 	art.world_offset += Vector3(0.0, 0.0, 0.42 * art.world_scale)
 	art.with_attachment(SCOPE_LARGE, Vector3(0.0, 0.20, 0.55))
 	art.weight = 1.8
+	art.aim_scoped = true
+	art.aim_zoom = 0.3
+	art.aim_time = 0.22
 	return art
 
 
@@ -392,6 +399,7 @@ static func _melee(id: StringName, model: String) -> ZeeWeaponArt:
 	# Pitching it up and yawing it inward puts its length across the screen where it can
 	# be seen, and keeps it off the crosshair.
 	art.view_rotation = Vector3(-72.0, -34.0, 0.0)
+	art.aim_enabled = false
 	# [b]No world rotation, and the temptation to add one is the trap.[/b] These models
 	# stand on their handle along +Y, so it is natural to write a -90 here to lay them
 	# down — but `model_forward` has already turned +Y onto -Z by the time this is
@@ -408,6 +416,7 @@ static func _thrown(id: StringName, model: String) -> ZeeWeaponArt:
 	art.view_scale = pose_scale(POSE_THROWN)
 	art.weight = pose_weight(POSE_THROWN)
 	art.view_rotation = Vector3(-35.0, 0.0, 0.0)
+	art.aim_enabled = false
 	return art
 
 

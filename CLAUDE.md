@@ -104,6 +104,12 @@ Reported on 2026-10-05 as "doesn't shoot any bullets, and no sounds". Both were 
 
 `zee_range -- --weapon smg --fire --capture <prefix>` is how a machine with no hands sees any of it: the trigger pulls itself, and six frames are saved counted from the first shot, with the clock slowed twenty times so that a software renderer's tenth-of-a-second frames are a flip-book of one shot rather than a picture of the reload after it.
 
+## Aiming down is presentation, and the game decides the button
+
+`ZeeViewModel.aim(held)` eases the weapon from the hip to `ZeeWeaponArt.aim_offset` over `aim_time`, steadies sway and bob by `ZeeWeaponPose.aim_steadiness`, and reports `aim_fov_scale()` (the art's `aim_zoom` at full aim) and `is_scoped()`. **It changes nothing the server simulates** — no command bit, no snapshot field — because the half of aiming that is a rule (tighter spread, slower walk) is a game's decision and belongs in its own command; this is the half that draws. The game applies the zoom to its camera (`DotFpsView.external_fov_scale`, beside `external_angles` for the same reason) and puts a `ZeeScopeOverlay` in its HUD for the scoped weapons; the view model hides the weapon and the arms through a scope, because a barrel across the bottom of a scope is a weapon held in front of the eye. Melee and throwables have `aim_enabled` off; the sniper is x0.3 and the marksman x0.5, both scoped; everything else aims at x0.8.
+
+**Right mouse is the bash's button too**, and choosing between them is the game's (a game setting, not a fork): the pack's alt-fire is `BUTTON_ALT` in the command, the aim is a local hold. Two render bugs were found by `EXTRA="--aim" tools/screenshot.sh sniper` before anything else could have: the overlay set its anchors without its offsets and filled nothing, and the arms are the view model's own child so hiding the animated node left an arm across the scope.
+
 ## Replication is a counter, not an event
 
 The obvious design is an RPC per shot, and it is wrong three ways at once: it needs a reliable channel for something worthless if it arrives late, it costs a packet per shot per watcher, and it desynchronises from the state snapshot it belongs with — so a watcher can see the muzzle flash of a weapon the same snapshot says has been holstered.
@@ -137,7 +143,7 @@ done
 timeout 300 godot --headless --path . res://examples/zee_selftest.tscn
 ```
 
-**18 sections, 168 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
+**19 sections, 180 checks.** The suite counts both, and the second is the one that catches what the first cannot: a script error aborts the section it is in, and the section counter is already satisfied because the section announced itself on the way in.
 
 ### And then look at it, because the suite cannot
 

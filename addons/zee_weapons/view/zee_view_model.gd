@@ -103,6 +103,15 @@ var _on_floor: bool = true
 var _crouched: bool = false
 var _look := Vector2.ZERO
 
+## Whether the aim button is held, and how far the weapon has come up to the eye.
+##
+## [b]Presentation only.[/b] Aiming changes what the player sees — the weapon centred, the
+## view zoomed, a scope — and nothing the server simulates, so it is never part of a
+## command or a snapshot. A game that wants aim to tighten spread puts that in its own
+## command; this is the half that draws.
+var _aim_held: bool = false
+var _aim_fraction: float = 0.0
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -181,6 +190,10 @@ func equip(art: ZeeWeaponArt) -> DotResult:
 	# The kick turns about the hand. The holder's origin is where the art puts the weapon
 	# in the hand, so it is the grip, measured once per weapon rather than written down.
 	_pose.pivot = _holder.transform.origin
+	# Aim moves the whole animated rig by the difference between the art's two places, so
+	# the holder arrives exactly at aim_offset. A new weapon starts at the hip.
+	_pose.aim_shift = art.aim_offset - art.view_offset
+	_aim_fraction = 0.0
 
 	if _arms != null:
 		_arms.set_pose(art.pose)
@@ -304,6 +317,7 @@ func on_landed(impact: float) -> void:
 func on_reset() -> void:
 	_pose.reset()
 	_look_seen = false
+	_aim_fraction = 0.0
 
 
 # --- The frame --------------------------------------------------------------
@@ -313,7 +327,63 @@ func _process(delta: float) -> void:
 		return
 
 	_pose.advance(delta, _look_delta(), _speed, _on_floor, _crouched)
+	_advance_aim(delta)
 	_animated.transform = _pose.offset()
+	# Through a scope the weapon is not drawn at all: the scope IS the view, and a barrel
+	# across the bottom of it is a weapon held in front of the eye that should be at it.
+	# The arms are the view model's own child rather than the animated one's (they follow
+	# the pose through set_pose), so they are hidden with it here or they are drawn across
+	# the bottom of the scope.
+	var scoped := is_scoped()
+	_animated.visible = not scoped
+	if _arms != null:
+		_arms.visible = not scoped
+
+
+# --- Aiming -----------------------------------------------------------------
+
+## Holds or releases the aim. Call every frame with the button's state, or on its edges.
+func aim(held: bool) -> void:
+	_aim_held = held
+
+
+## 0 at the hip to 1 at full aim.
+func aim_fraction() -> float:
+	return _aim_fraction
+
+
+## Whether the weapon in hand can be aimed at all (melee and throwables cannot).
+func can_aim() -> bool:
+	return _art != null and _art.aim_enabled
+
+
+## The field-of-view multiplier for this frame: 1 at the hip, the art's zoom at full aim.
+##
+## [b]The game applies it to its own camera[/b] (dot-player-controller's
+## `DotFpsView.external_fov_scale`), for the same reason as [method view_punch]: the view
+## model is a child of the camera and has no business setting the camera's lens.
+func aim_fov_scale() -> float:
+	if _art == null:
+		return 1.0
+	return lerpf(1.0, _art.aim_zoom, _ease(_aim_fraction))
+
+
+## Whether the view is through a scope right now: a scoped weapon at (nearly) full aim.
+func is_scoped() -> bool:
+	return _art != null and _art.aim_scoped and _aim_fraction >= 0.95
+
+
+func _advance_aim(delta: float) -> void:
+	var target := 1.0 if (_aim_held and can_aim()) else 0.0
+	var time := _art.aim_time if _art != null else 0.16
+	_aim_fraction = move_toward(_aim_fraction, target, delta / maxf(time, 0.01))
+	_pose.set_aim(_ease(_aim_fraction))
+
+
+## Smoothstep, so the weapon leaves the hip and arrives at the eye gently rather than at
+## a constant rate, which reads as mechanical.
+static func _ease(x: float) -> float:
+	return x * x * (3.0 - 2.0 * x)
 
 
 ## Tells the rig how the holder is moving and looking this frame.
@@ -492,6 +562,7 @@ func describe() -> Dictionary:
 		"arms": _arms.describe() if _arms != null else {},
 		"pose": _pose.describe(),
 		"muzzle": _muzzle,
+		"aim": "%.2f%s%s" % [_aim_fraction, " held" if _aim_held else "", " scoped" if is_scoped() else ""],
 	}
 
 

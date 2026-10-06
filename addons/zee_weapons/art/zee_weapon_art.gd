@@ -80,6 +80,30 @@ extends Resource
 ## that nobody will ever tune individually.
 @export_range(0.0, 3.0, 0.05) var weight: float = 1.0
 
+@export_group("Aim")
+
+## Whether the weapon can be aimed down at all. Off for melee and anything thrown: there is
+## nothing to look along.
+@export var aim_enabled: bool = true
+
+## The field of view at full aim, as a fraction of the unaimed one. 1 aims without zooming.
+##
+## [b]A scale and not a field of view in degrees[/b], because the game owns the base field
+## of view (a player setting, usually) and an aim that set an absolute one would zoom a
+## 110-degree player less than a 70-degree one.
+@export_range(0.05, 1.0, 0.01) var aim_zoom: float = 0.8
+
+## Whether full aim looks through a scope: the model is hidden and the game draws a scope
+## over the screen ([ZeeScopeOverlay]). For the long-range weapons.
+@export var aim_scoped: bool = false
+
+## Where the holder sits at full aim, in place of [member view_offset]: centred, so the
+## weapon's top lines up under the crosshair. Tuned per pose like the resting place.
+@export var aim_offset: Vector3 = Vector3(0.0, -0.11, -0.42)
+
+## Seconds from hip to full aim (and back).
+@export_range(0.01, 1.0, 0.01) var aim_time: float = 0.16
+
 @export_group("Third person")
 
 ## Where the weapon sits relative to the character's hand attachment point.
@@ -247,6 +271,9 @@ func describe() -> Dictionary:
 		"weight": weight,
 		"attachments": attachments.size(),
 		"magazine": magazine_path,
+		"aim": ("scoped x%.2f" % aim_zoom) if aim_scoped else (
+			("x%.2f" % aim_zoom) if aim_enabled else "no"
+		),
 	}
 
 

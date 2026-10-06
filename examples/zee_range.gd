@@ -40,6 +40,12 @@ const TARGETS := "res://assets/blaster-kit/"
 
 var _rig: ZeeWeaponRig = null
 var _view: ZeeViewModel = null
+
+## The scope drawn over the screen at full aim with a scoped weapon.
+var _scope: ZeeScopeOverlay = null
+
+## `--aim` holds the aim for the whole run, so a capture shows the aimed pose.
+var _always_aim: bool = false
 var _input := ZeeWeaponInput.make()
 
 ## The simulation tick. Advanced in `_physics_process`, never read from a clock.
@@ -88,6 +94,12 @@ func _build_weapons() -> void:
 	# identical in a screenshot until one of them is switched off.
 	_view.show_arms = _argument("--no-arms") == ""
 	_camera.add_child(_view)
+
+	_always_aim = OS.get_cmdline_user_args().has("--aim")
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	_scope = ZeeScopeOverlay.new()
+	layer.add_child(_scope)
 
 	_rig = ZeeWeaponRig.new()
 	_rig.name = "WeaponRig"
@@ -156,6 +168,13 @@ func _process(_delta: float) -> void:
 	if _controller.view != null:
 		var punch := _rig.view_punch()
 		_controller.view.external_angles = Vector3(punch.x, punch.y, 0.0)
+
+	# Right mouse aims, as a game would wire it: the view model eases and draws, the camera
+	# takes the zoom, the HUD takes the scope.
+	_view.aim(_always_aim or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+	if _controller.view != null:
+		_controller.view.external_fov_scale = _view.aim_fov_scale()
+	_scope.fraction = _view.aim_fraction() if _view.is_scoped() else 0.0
 
 	_draw_readout()
 

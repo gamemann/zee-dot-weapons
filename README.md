@@ -40,6 +40,7 @@ dot-weapon decides that a use happened and refuses to draw anything. That is the
 - **`ZeeWeaponPack`** — the twenty-seven rows, tuned in ticks, validated as one document a dedicated server can check at boot with no art installed.
 - **`ZeeWeaponArtTable`** — the only file that knows a filename. Weapons are named by role, so replacing the art replaces one table and changes no rule, no loadout and no save.
 - **`ZeeViewModel`** — the weapon in your own hands: arms, magazine, attachments, sway, bob, recoil, deploy, reload, charge.
+- **Aiming down** — `ZeeViewModel.aim(held)` brings the weapon to the centre and reports a zoom for the camera (`aim_fov_scale()`); the sniper and marksman look through a scope (`ZeeScopeOverlay`, drawn, no texture). Per weapon in the art table (`aim_enabled`, `aim_zoom`, `aim_scoped`, `aim_offset`, `aim_time`). Presentation only: it changes nothing the server simulates. `--aim` in the range holds it for a screenshot.
 - **`ZeeWorldModel`** — the weapon in somebody else's hands, hung off their character's hand attachment. Depth-tested, shadow-casting, the right size.
 - **`ZeeWeaponPose`** — the animation arithmetic, with no `Node` in it, so a headless suite can assert that the springs settle and that nothing produces a `NaN`.
 - **`ZeeShotFx`** — what a shot looks and sounds like: a tracer to where it landed, a muzzle flash with a light, a spark and a puff on what it hit, and the report. Built by the rig in first person and by the world model for somebody else's shots; never on a server.

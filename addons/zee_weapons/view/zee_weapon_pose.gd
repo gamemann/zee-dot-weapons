@@ -181,6 +181,17 @@ var _charge: float = 0.0
 ## Metres of landing dip left to recover.
 var _landing: float = 0.0
 
+## How far into aiming down the weapon, 0 at the hip to 1 at full aim. See [method set_aim].
+var _aim: float = 0.0
+
+## Where full aim moves the weapon to, relative to where it rests. Set by the view model
+## from the art, because the resting place is the art's and so is the sight line.
+var aim_shift := Vector3.ZERO
+
+## How much of the sway and bob full aim takes away. Steadier, not frozen: a weapon held
+## dead still at full aim reads as a picture of a weapon.
+var aim_steadiness: float = 0.75
+
 
 static func make(p_weight: float = 1.0) -> ZeeWeaponPose:
 	var pose := ZeeWeaponPose.new()
@@ -286,6 +297,11 @@ func set_deploy(fraction: float) -> void:
 
 
 ## How far into a reload, 0 to 1.
+## How far into aiming, 0 to 1. The view model eases it; the pose only applies it.
+func set_aim(fraction: float) -> void:
+	_aim = clampf(fraction, 0.0, 1.0) if is_finite(fraction) else 0.0
+
+
 func set_reload(fraction: float) -> void:
 	_reload = clampf(fraction, 0.0, 1.0) if is_finite(fraction) else _reload
 
@@ -309,6 +325,7 @@ func reset() -> void:
 	_kick_rotation = Vector3.ZERO
 	_kick_rotation_velocity = Vector3.ZERO
 	_landing = 0.0
+	_aim = 0.0
 
 
 # --- The result -------------------------------------------------------------
@@ -317,13 +334,18 @@ func reset() -> void:
 func offset() -> Transform3D:
 	var holstered := 1.0 - _deploy
 
+	# Aiming steadies what the hands add, and leaves what the weapon does (kick, reload,
+	# deploy) alone: a reload at full aim still has to be seen to happen.
+	var steady := 1.0 - _aim * clampf(aim_steadiness, 0.0, 1.0)
+
 	var position := Vector3(
-		_sway.x,
-		_sway.y - _landing - holstered * tunables.holster_drop - _reload * tunables.reload_drop,
+		_sway.x * steady,
+		_sway.y * steady - _landing - holstered * tunables.holster_drop - _reload * tunables.reload_drop,
 		_kick + _charge * tunables.charge_pull
 	)
 
-	position += _bob_offset()
+	position += _bob_offset() * steady
+	position += aim_shift * _aim
 
 	var basis := Basis.from_euler(Vector3(
 		deg_to_rad(_reload * tunables.reload_tip),

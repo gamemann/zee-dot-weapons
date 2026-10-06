@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 168
+const CHECKS := 180
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -49,6 +49,7 @@ func _ready() -> void:
 	_rig_carrier()
 	_rig_rollback()
 	_view_models()
+	_aim()
 	_effects()
 	_input_bindings()
 
@@ -967,6 +968,71 @@ func _view_models() -> void:
 
 	view.queue_free()
 	arms.queue_free()
+	_end()
+
+
+func _aim() -> void:
+	_begin("aiming down")
+
+	var aimable := 0
+	for art: ZeeWeaponArt in ZeeWeaponArtTable.all():
+		if art.aim_enabled:
+			aimable += 1
+	# Twenty-seven less seven melee (fists included) and two thrown.
+	_check("eighteen weapons aim; melee and throwables do not (%d)" % aimable, aimable == 18)
+
+	var view := ZeeViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var animated := view.get_node("Animated") as Node3D
+
+	# _process is driven by hand so the easing is the same on every run and every machine.
+	var step := func(seconds: float) -> void:
+		for _i in range(int(seconds / 0.02)):
+			view._process(0.02)
+
+	view.equip(ZeeWeaponArtTable.get_art(ZeeWeaponIds.SNIPER))
+	view.aim(true)
+	step.call(0.4)
+	_check("the sniper comes fully up in its aim_time (%.2f)" % view.aim_fraction(),
+		is_equal_approx(view.aim_fraction(), 1.0))
+	_check("and zooms to x0.3 (%.3f)" % view.aim_fov_scale(),
+		absf(view.aim_fov_scale() - 0.3) < 0.001)
+	_check("and looks through its scope", view.is_scoped())
+	_check("which hides the weapon: the scope is the view", not animated.visible)
+
+	view.aim(false)
+	step.call(0.4)
+	_check("released, the lens is back to x1 (%.3f)" % view.aim_fov_scale(),
+		is_equal_approx(view.aim_fov_scale(), 1.0))
+	_check("and the weapon is drawn again", animated.visible and not view.is_scoped())
+
+	var rifle := ZeeWeaponArtTable.get_art(ZeeWeaponIds.RIFLE)
+	view.equip(rifle)
+	view.aim(true)
+	step.call(0.4)
+	_check("a rifle zooms a little and is not scoped (%.2f)" % view.aim_fov_scale(),
+		absf(view.aim_fov_scale() - rifle.aim_zoom) < 0.001 and not view.is_scoped())
+	var holder := view.get_node("Animated/Holder") as Node3D
+	var at := animated.transform.origin + holder.transform.origin
+	_check("and arrives centred at its aim_offset (%.3f m off)" % at.distance_to(rifle.aim_offset),
+		at.distance_to(rifle.aim_offset) < 0.01)
+
+	view.equip(ZeeWeaponArtTable.get_art(ZeeWeaponIds.PISTOL))
+	_check("a new weapon starts at the hip, aim held or not", view.aim_fraction() == 0.0)
+
+	view.equip(ZeeWeaponArtTable.get_art(ZeeWeaponIds.KNIFE))
+	view.aim(true)
+	step.call(0.4)
+	_check("a knife held to aim stays at the hip", view.aim_fraction() == 0.0 and view.aim_fov_scale() == 1.0)
+
+	var overlay := ZeeScopeOverlay.new()
+	add_child(overlay)
+	overlay.fraction = 2.0
+	_check("the scope overlay clamps its fraction", overlay.fraction == 1.0)
+
+	overlay.queue_free()
+	view.queue_free()
 	_end()
 
 
