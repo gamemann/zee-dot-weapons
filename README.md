@@ -1,6 +1,4 @@
-This is a **weapons pack** built on TMC's **Dot** collection, rather than a piece of it. It is the half [dot-weapon](https://github.com/modcommunity/dot-weapon) deliberately leaves out — the view models, the world models, the animation and the art — with twenty-seven weapons already built on top of it.
-
-The **Dot** collection is a set of open source Godot 4 assets that provide modular building blocks for games and applications in the TMC ecosystem, covering core functionality, networking, authentication, cloud integration, and more. This pack is built out of them, so it doubles as a worked example of what they look like in a real project rather than in a demo.
+This is a weapons pack to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). It adds twenty-seven ready-made weapons on top of [dot-weapon](https://github.com/modcommunity/dot-weapon) (blasters, melee weapons, grenades and fists), along with everything a player sees and hears: first-person view models with arms, third-person world models, animation, tracers, sounds and recoil. The games in the Dot collection, such as [game-arena](https://github.com/gamemann/game-arena), use it.
 
 **This pack and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license, and the art it ships is CC0, which asks for even less. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
 
@@ -116,24 +114,19 @@ Godot **4.7**, and three addons: [dot-core](https://github.com/modcommunity/dot-
 Desktop, mobile and the browser from one build. Nothing here opens a socket, reads a clock, spawns a thread or touches `user://`.
 
 ## Running it
+The easiest way to get the pack and its addons is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap) (`./bootstrap.sh`, then `cd projects/zee-dot-weapons`). Then:
 
-```bash
-# A firing range you can walk around, holding any of the twenty-seven.
-godot --path . res://examples/zee_range.tscn
+| Command | What it does |
+| --- | --- |
+| `./game.sh` | A firing range you can walk around, holding any of the twenty-seven |
+| `./game.sh play -- --weapon smg --fire --capture /tmp/smg` | The range firing on its own, saving six frames from the first shot |
+| `./game.sh test` | Check every script and run the test suite |
+| `./game.sh shot --rack` | Every weapon at once, with a marker on each muzzle |
+| `./game.sh help` | All of the options |
 
-# The range firing on its own, saving six frames counted from the first shot.
-godot --path . res://examples/zee_range.tscn -- --weapon smg --fire --capture /tmp/smg
+In the range: **WASD** to move, mouse to look, **left click** to fire, **right click** to bash, **R** to reload, **1**-**5** for the slots, **Q** for the last weapon, the wheel to cycle, and **F1** to print the rig's state.
 
-# The headless suite: 18 sections, 168 checks.
-godot --headless --path . res://examples/zee_selftest.tscn
-
-# Every weapon at once, with a marker on each muzzle.
-tools/screenshot.sh --rack
-```
-
-In the range: WASD to move, mouse to look, left click to fire, **right click to bash**, R to reload, 1–5 for the slots, Q for the last weapon, wheel to cycle, F1 to dump the rig's state.
-
-## Licence
+## License
 
 The code is MIT — see [LICENSE](LICENSE).
 
