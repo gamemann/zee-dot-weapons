@@ -9,15 +9,10 @@ This pack, along with every asset it is built on, was built initially with **Cla
 
 I intend on reviewing code, testing, and editing documentation regularly. If you're interested in helping out, please let me know!
 
-## Twenty-Seven Weapons, Built on dot-weapon
-
-A complete, networked weapons pack for the Dot ecosystem: **twenty-seven weapons** built on [dot-weapon](https://github.com/modcommunity/dot-weapon)'s catalogue, with first-person view models, third-person world models, procedural animation, and the replication that makes another player's weapon look right on your screen.
-
-Art is Kenney's **Blaster Kit**, with melee from the Weapon Pack and Survival Kit and first-person hands from the Blocky Characters — all CC0, all vendored, nothing to download.
+## What is in it
+Art is Kenney's **Blaster Kit**, with the melee weapons from the Weapon Pack and Survival Kit and the first-person hands from the Blocky Characters. All of it is CC0 and included, so there is nothing to download.
 
 ![the whole pack](docs/rack.png)
-
-## What is in it
 
 | Slot | Weapons |
 | --- | --- |
@@ -27,28 +22,27 @@ Art is Kenney's **Blaster Kit**, with melee from the Weapon Pack and Survival Ki
 | 4 · Heavy | Sniper Rifle, Minigun, Launcher, Beamer, Charge Rifle |
 | 5 · Thrown | Frag Grenade, Sticky Charge |
 
-Every blaster also has a **bash** on the alt-fire, so twenty of the twenty-seven have a second thing they can do.
+Every blaster can also **bash** with the alt-fire button.
 
-They are not twenty-seven statistical variations on one gun. Each is an answer to a different question — the knife is the fastest thing in the pack, the mallet is the hardest single hit, the bullpup is the only weapon that stays accurate while you move, the beamer rewards tracking instead of aim, the minigun has no magazine at all and simply runs out. Seven ammunition pools are shared across families, so a box of darts on the floor is a decision rather than a formality.
+Each weapon plays differently, not just with different numbers. The knife is the fastest thing in the pack and the mallet hits hardest. The bullpup is the only weapon that stays accurate while you move. The beamer rewards keeping your aim on a target, not flicking to it, and the minigun has no magazine: it just runs out. The weapons share seven ammunition types between them, so picking up a box of darts is a real choice.
 
-## What it adds over dot-weapon
+## What it adds to dot-weapon
+dot-weapon decides when a weapon fires, reloads and switches, but it doesn't draw anything. This pack is the part you see and hear:
 
-dot-weapon decides that a use happened and refuses to draw anything. That is the right split and it leaves a real gap: a weapon nobody can see. This pack is that half.
-
-- **`ZeeWeaponPack`** — the twenty-seven rows, tuned in ticks, validated as one document a dedicated server can check at boot with no art installed.
-- **`ZeeWeaponArtTable`** — the only file that knows a filename. Weapons are named by role, so replacing the art replaces one table and changes no rule, no loadout and no save.
-- **`ZeeViewModel`** — the weapon in your own hands: arms, magazine, attachments, sway, bob, recoil, deploy, reload, charge.
-- **Aiming down** — `ZeeViewModel.aim(held)` brings the weapon to the centre and reports a zoom for the camera (`aim_fov_scale()`); the sniper and marksman look through a scope (`ZeeScopeOverlay`, drawn, no texture). Per weapon in the art table (`aim_enabled`, `aim_zoom`, `aim_scoped`, `aim_offset`, `aim_time`). Presentation only: it changes nothing the server simulates. `--aim` in the range holds it for a screenshot.
-- **`ZeeWorldModel`** — the weapon in somebody else's hands, hung off their character's hand attachment. Depth-tested, shadow-casting, the right size.
-- **`ZeeWeaponPose`** — the animation arithmetic, with no `Node` in it, so a headless suite can assert that the springs settle and that nothing produces a `NaN`.
-- **`ZeeShotFx`** — what a shot looks and sounds like: a tracer to where it landed, a muzzle flash with a light, a spark and a puff on what it hit, and the report. Built by the rig in first person and by the world model for somebody else's shots; never on a server.
-- **`ZeeWeaponSound`** — a report per weapon class (light, magnum, rifle, heavy, sniper, shotgun, minigun, launcher, beam, charge, plus swings, bashes, throws, impacts and the two halves of a reload), baked from arithmetic on first use. The pack ships no audio; `ZeeWeaponSound.set_stream(id, stream)` puts a real recording in front of any of them.
-- **`ZeeWeaponNet`** — four small fields on top of dot-weapon's replication, so a watcher sees the gun move. A four-bit counter rather than an RPC per shot.
-- **`ZeeWeaponRig`** — the one node a game adds per player, which wires all of the above in the order that works.
+| Class | What it does |
+| --- | --- |
+| `ZeeWeaponPack` | The twenty-seven weapons, tuned in ticks and checked as one document. A dedicated server can validate them at boot without any art installed. |
+| `ZeeWeaponArtTable` | The only file that knows a filename. Weapons are named by role, so swapping the art means editing this one table. |
+| `ZeeViewModel` | The weapon in your own hands: arms, magazine, attachments, sway, bob, recoil, deploy, reload and charge. `aim(held)` brings it to the centre of the screen and reports a zoom for the camera (`aim_fov_scale()`). The sniper and marksman rifle get a scope (`ZeeScopeOverlay`). Aiming is set per weapon in the art table (`aim_enabled`, `aim_zoom`, `aim_scoped`, `aim_offset`, `aim_time`) and only changes what is drawn, never what the server simulates. |
+| `ZeeWorldModel` | The weapon in somebody else's hands, attached to their character's hand. |
+| `ZeeWeaponPose` | The animation maths, with no nodes in it, so the test suite can check the springs settle and nothing produces `NaN`. |
+| `ZeeShotFx` | What a shot looks and sounds like: a tracer, a muzzle flash with a light, a spark and a puff where it lands, and the sound. Never built on a server. |
+| `ZeeWeaponSound` | A sound for each kind of weapon (light, magnum, rifle, heavy, sniper, shotgun, minigun, launcher, beam, charge, plus swings, bashes, throws, impacts and reloads), generated on first use. The pack ships no audio files; `ZeeWeaponSound.set_stream(id, stream)` replaces any of them with a real recording. |
+| `ZeeWeaponNet` | Four small replicated fields on top of dot-weapon's, so other players see your gun fire and reload. |
+| `ZeeWeaponRig` | The one node a game adds per player. It sets up everything above in the right order. |
 
 ## Using it
-
-Copy `addons/zee_weapons/` and `assets/` into your project, alongside `dot_core`, `dot_combat` and `dot_weapon`. Enable the plugin.
+Copy `addons/zee_weapons/` and `assets/` into your project, next to `dot_core`, `dot_combat` and `dot_weapon`, and enable the plugin.
 
 ```gdscript
 var rig := ZeeWeaponRig.new()
@@ -62,56 +56,54 @@ rig.give(ZeeWeaponIds.RIFLE)
 rig.give(ZeeWeaponIds.KNIFE)
 ```
 
-Then once per simulation tick:
+Once per simulation tick:
 
 ```gdscript
 var outcome := rig.simulate_tick(command, tick)
 
 for shot in outcome.shots:
-    combat.resolve(shot)                   # dot-combat's, on the authority only
+    combat.resolve(shot)                   # dot-combat, on the authority only
 ```
 
-and once per render frame, for the sway and the bob, and the camera's half of the recoil:
+Once per rendered frame, for sway, bob and the camera's share of the recoil:
 
 ```gdscript
 rig.drive_view(Vector2(yaw, pitch), speed, on_floor, crouched)
 
-var punch := rig.view_punch()              # degrees, pitch up and yaw
-fps_view.external_angles = Vector3(punch.x, punch.y, 0.0)   # or add it where you write the camera
+var punch := rig.view_punch()              # degrees: pitch up, and yaw
+fps_view.external_angles = Vector3(punch.x, punch.y, 0.0)
 ```
 
-The punch is presentation: add it to the camera after your controller writes it, never to the command's angles. The shot already went where the command pointed.
+Add the punch to the camera after your controller has positioned it. Don't add it to the command's angles: the shot has already gone where the command pointed.
 
-Tracers, flashes, impacts and sounds come with the rig and need no code. `rig.effects = false` turns them off for a game that draws its own from the `used` signal; `rig.shot_fx()` is the node, for its audio bus and volume.
+Tracers, flashes, impacts and sounds come with the rig. Set `rig.effects = false` if your game draws its own from the `used` signal; `rig.shot_fx()` returns the node, for its audio bus and volume.
 
-That is the whole integration. The rig finds the player through `DotWeaponPlayerBridge`, which is duck-typed — nothing in this addon names a player class, a controller class or a netcode class, so it works with dot-player or with your own.
+That's the whole integration. The rig finds the player through `DotWeaponPlayerBridge`, which doesn't name any player, controller or netcode class, so it works with dot-player or with your own.
 
 ### Networking
 
 ```gdscript
 # On the carrier's replicated object, once:
-var specs := ZeeWeaponNet.all_specs()      # dot-weapon's three, plus this pack's four
+var specs := ZeeWeaponNet.all_specs()      # dot-weapon's three fields, plus this pack's four
 
-# On the authority, each tick, after simulating:
+# On the authority, every tick after simulating:
 rig.pull_net(replicated)
 
-# On a watcher, each snapshot:
+# On a watcher, every snapshot:
 _seen = ZeeWeaponNet.apply(replicated, world_model, _seen)["seq"]
 ```
 
-A watcher's world model draws the flash, a tracer along the barrel and the report for each snapshot the counter moved in. It stays quiet on its own if the carrier's first-person rig is on the same machine, so a game that drives every player's world model from the counter, its own player included, does not hear its own shots twice.
+A watcher's world model plays the flash, a tracer and the sound each time the shot counter moves. It stays quiet if the carrier's first-person rig is on the same machine, so your own shots aren't heard twice.
 
-Ammunition stays owner-only, because exact magazine counts are information an opponent should not have. What is public is that a shot happened, which anybody in the room can see anyway.
+Ammunition is only sent to the weapon's owner, since exact magazine counts would help an opponent. That a shot happened is sent to everybody.
 
 ### Rollback
-
-`rig.snapshot()` and `rig.restore()` carry the arsenal, the bash cooldown, the charge and the previous command's buttons. Wrap a reconciliation replay in `rig.begin_replay()` / `rig.end_replay()` and the simulation re-runs while the drawing does not.
+`rig.snapshot()` and `rig.restore()` save and restore the arsenal, the bash cooldown, the charge and the previous command's buttons. Wrap a reconciliation replay in `rig.begin_replay()` / `rig.end_replay()` so the simulation runs again without drawing anything twice.
 
 ## Requirements
+Godot **4.7**, plus three addons: [dot-core](https://github.com/modcommunity/dot-core), [dot-combat](https://github.com/modcommunity/dot-combat) and [dot-weapon](https://github.com/modcommunity/dot-weapon). dot-net, dot-player, dot-player-controller and dot-player-char are optional and are used if present.
 
-Godot **4.7**, and three addons: [dot-core](https://github.com/modcommunity/dot-core), [dot-combat](https://github.com/modcommunity/dot-combat) and [dot-weapon](https://github.com/modcommunity/dot-weapon). Everything else — dot-net, dot-player, dot-player-controller, dot-player-char — is optional and reached by duck typing.
-
-Desktop, mobile and the browser from one build. Nothing here opens a socket, reads a clock, spawns a thread or touches `user://`.
+It works on desktop, mobile and in the browser from one build. Nothing in it opens a socket, reads a clock, starts a thread or writes to `user://`.
 
 ## Running it
 The easiest way to get the pack and its addons is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap) (`./bootstrap.sh`, then `cd projects/zee-dot-weapons`). Then:
@@ -126,8 +118,8 @@ The easiest way to get the pack and its addons is [dot-bootstrap](https://github
 
 In the range: **WASD** to move, mouse to look, **left click** to fire, **right click** to bash, **R** to reload, **1**-**5** for the slots, **Q** for the last weapon, the wheel to cycle, and **F1** to print the rig's state.
 
+## Credits
+The art is by [Kenney](https://kenney.nl) (CC0): the [Blaster Kit](https://kenney.nl/assets/blaster-kit), the Weapon Pack, the Survival Kit and the Blocky Characters. Only the files the pack uses are included (47 models and three textures, 1.7 MB), each kit's licence next to its files in `assets/`.
+
 ## License
-
-The code is MIT — see [LICENSE](LICENSE).
-
-The art is **CC0 1.0** by [Kenney](https://kenney.nl), which asks for nothing and permits everything, including commercial use. The original licence text ships beside each kit in `assets/`. The kits used are the [Blaster Kit](https://kenney.nl/assets/blaster-kit), the Weapon Pack, the Survival Kit and the Blocky Characters; only the files actually referenced are vendored, which is 47 models and three textures at 1.7 MB.
+MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.
