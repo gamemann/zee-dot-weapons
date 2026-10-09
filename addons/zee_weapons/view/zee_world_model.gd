@@ -55,6 +55,16 @@ const RECOIL_SHARE := 0.35
 ## Whether a shot is drawn and heard from this hand. See [method on_fired].
 @export var effects: bool = true
 
+## Whether the report is heard, when [member effects] draws the shot.
+##
+## [b]Off for a game that already has a sound for somebody else's shot[/b] — one that plays
+## a use by its kind from the replicated counter, before any of this pack's art was drawn.
+## Leaving both on is two reports for one shot from the same place; turning [member effects]
+## off to stop it throws away the flash and the tracer, which are the part a watcher needs.
+## Set with `set(&"sounds", …)` from a delivered game, because a shell built before this
+## property existed fails to parse a pack that names it.
+@export var sounds: bool = true
+
 var _holder: Node3D = null
 var _weapon: Node3D = null
 var _attachments: Array[Node3D] = []
@@ -246,6 +256,7 @@ func _shot_fx() -> ZeeShotFx:
 
 	_fx = ZeeShotFx.new()
 	_fx.name = "ShotFx"
+	_fx.sounds = sounds
 	add_child(_fx)
 	_fx.exclude_carrier(_carrier_body())
 	return _fx
