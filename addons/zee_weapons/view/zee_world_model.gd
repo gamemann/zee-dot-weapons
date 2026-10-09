@@ -252,6 +252,9 @@ func _process(delta: float) -> void:
 ## and thirty effects nodes waiting to be needed is thirty nodes in every frame's walk.
 func _shot_fx() -> ZeeShotFx:
 	if _fx != null and is_instance_valid(_fx):
+		# Read every shot, not only at creation: a game that turns sounds off after the
+		# first shot (a settings change) would otherwise keep hearing them.
+		_fx.sounds = sounds
 		return _fx
 
 	_fx = ZeeShotFx.new()

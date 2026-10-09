@@ -20,7 +20,7 @@ extends Node
 ## Every check this suite makes. A script error aborts the section it is in, and a section
 ## that aborts after its last `_check` still counts as finished; only a total can see the
 ## checks that never ran. It was counted and compared with nothing until 2026-09-24.
-const CHECKS := 183
+const CHECKS := 184
 
 var _sections_entered: int = 0
 var _sections_finished: int = 0
@@ -1202,6 +1202,13 @@ func _effects() -> void:
 	_check(
 		"somebody else's shot is drawn from their hand",
 		their_fx != null and their_fx.tracer_count() == 1
+	)
+	# Sounds turned off after the first shot (a settings change) reach the next one.
+	theirs.sounds = false
+	theirs.on_fired(Vector2(0.4, 0.1), ZeeWeaponNet.KIND_SHOT)
+	_check(
+		"and turning their sounds off after a shot silences the next one",
+		their_fx != null and not their_fx.sounds
 	)
 
 	var server := _make_rig()
